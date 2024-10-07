@@ -185,7 +185,7 @@ const finalDap = (userRedirected, globals) => {
             globals.functions.setProperty(globals.form.resultPanel.successResultPanel.vkycProceedButton, { visible: true });
             currentFormContext.isVideoKyc = true;
           }
-          throughDomSetArnNum(response.applicationNumber, mobileNumber, journeyId, leadProfileId, globals);
+          throughDomSetArnNum(response.applicationNumber, mobileNumber, leadProfileId, journeyId, globals);
           setTimeout(async (globalObj) => {
             const santizedFormData = santizedFormDataWithContext(globalObj);
             await Promise.resolve(sendPageloadEvent('CONFIRMATION_JOURNEY_STATE', santizedFormData, 'CONFIRMATION_PAGE_NAME'));

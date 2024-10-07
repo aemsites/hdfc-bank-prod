@@ -794,6 +794,8 @@ function checkMode(globals) {
   const formData = globals.functions.exportData();
   const idcomVisit = formData?.queryParams?.authmode; // "DebitCard"
   const aadharVisit = formData?.queryParams?.visitType; // "EKYC_AUTH
+  console.log(idcomVisit);
+  console.log(formData);
   // temporarly added referenceNumber check for IDCOMM redirection to land on submit screen.
   if (aadharVisit === 'EKYC_AUTH' && formData?.aadhaar_otp_val_data?.message && formData?.aadhaar_otp_val_data?.message === 'Aadhaar OTP Validate success') {
     try {
@@ -852,8 +854,9 @@ function checkMode(globals) {
     globals.functions.setProperty(globals.form.confirmResult, { visible: false });
     const userRedirected = true;
     executeInterfacePostRedirect('idCom', userRedirected, globals);
+    
   }
-  if (!formData.form.login.maskedMobileNumber) {
+    if (!formData.form.login.maskedMobileNumber) {
     globals.functions.setProperty(globals.form.loginPanel, { visible: false });
     globals.functions.setProperty(globals.form.welcomeText, { visible: false });
     globals.functions.setProperty(globals.form.getOTPbutton, { visible: false });
