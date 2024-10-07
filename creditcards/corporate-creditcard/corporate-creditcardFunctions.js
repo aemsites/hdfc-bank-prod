@@ -31,7 +31,7 @@ import * as CONSTANT from '../../common/constants.js';
 import * as CC_CONSTANT from './constant.js';
 import { executeInterfacePostRedirect } from './executeinterfaceutils.js';
 
-setTimeout(() => import('./cc.js'), 1200);
+// setTimeout(() => import('./cc.js'), 1200);
 
 const {
   ENDPOINTS,
