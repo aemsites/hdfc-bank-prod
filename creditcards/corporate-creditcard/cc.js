@@ -386,7 +386,7 @@ pageRedirected(aadharRedirect, idComRedirect);
 /**
  * Applies the restrictToAlphabetsNoSpaces function to an array of input field names.
  * The function restricts input to alphabetic characters only, excluding numbers, symbols, and spaces.
- * @param {string[]} inputNames - An array of input field names to be restricted.
+ * @param {string[]} inputNames - An array of input field names to be restricted..
  */
 [yourDetails.firstName, yourDetails.middleName, yourDetails.lastName].forEach((inputField) => DOM_API.restrictToAlphabetsNoSpaces(inputField));
 
