@@ -1,7 +1,5 @@
 {
    "mappings": [
-    "/content/forms/af/:/hdfca/",
-    "/content/hdfc_haf/config.json:/.helix/config.json"
   ],
   "includes": []
 }
