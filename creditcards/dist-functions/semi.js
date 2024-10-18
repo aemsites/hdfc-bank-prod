@@ -1,6 +1,266 @@
 (function (exports) {
   'use strict';
 
+  /* eslint-disable no-console */
+  // eslint-disable-next-line no-use-before-define
+
+  const restAPIDataSecurityServiceContext = {
+    SEC_KEY_HEADER: 'X-ENCKEY',
+    SEC_SECRET_HEADER: 'X-ENCSECRET',
+    crypto,
+    supportsES6: (typeof window !== 'undefined') ? (!window.msCrypto) : false,
+    symmetricAlgo: 'AES-GCM',
+    symmetricKeyLength: 256,
+    secretLength: 12, // IV length
+    secretTagLength: 128, // GCM tag length
+    aSymmetricAlgo: 'RSA-OAEP',
+    digestAlgo: 'SHA-256',
+    initStatus: false,
+    symmetricKey: null,
+    encSymmetricKey: null,
+    aSymmetricPublicKey: null,
+  };
+
+  /*
+         * Convert a string into an array buffer
+         */
+  function stringToArrayBuffer(str) {
+    const buf = new ArrayBuffer(str.length);
+    const bufView = new Uint8Array(buf);
+    // eslint-disable-next-line no-plusplus
+    for (let i = 0, strLen = str.length; i < strLen; i++) {
+      bufView[i] = str.charCodeAt(i);
+    }
+    return buf;
+  }
+  /*
+         * convert array buffer to string
+         */
+  function arrayBufferToString(str) {
+    const byteArray = new Uint8Array(str);
+    let byteString = '';
+    // eslint-disable-next-line no-plusplus
+    for (let i = 0; i < byteArray.byteLength; i++) {
+      byteString += String.fromCharCode(byteArray[i]);
+    }
+    return byteString;
+  }
+
+  /**
+         * Prepares the request headers
+         */
+  function getDataEncRequestHeaders(encDataPack) {
+    const requestHeaders = {};
+    requestHeaders[restAPIDataSecurityServiceContext.SEC_KEY_HEADER] = encDataPack.keyEnc;
+    requestHeaders[restAPIDataSecurityServiceContext.SEC_SECRET_HEADER] = encDataPack.secretEnc;
+    return requestHeaders;
+  }
+
+  /**
+   * Initialization in browsers where ES6 is supported
+   * @param {object} globals - globals form object
+   */
+  function initRestAPIDataSecurityServiceES6() {
+    return new Promise((resolve, reject) => {
+      // eslint-disable-next-line max-len
+      const publicKeyPemContent = 'MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAocLO0ZabqWBbhb/cpaHTZf53LfEymcRMuAHRpUh3yhwPROgY2u3FTEsFJSKdQAbA4205njlXq3A1ICCd1ZrEQBA7Vc60eL0suO/0Qu5U/8vtYNCPsvMX+Pd7cUcMMM6JmLxacvlThOwAxc0ChSrFhlGRHQFZbg44y0Xy0B2bvxOnEjSAtV7kLjht/EKkiPXc3wptsLEMu2qK34Djucp5AllsbxJdWFogHTcJ1vizxAge9KwxA/2GSKYr5c9Wt8EAn7kqC0t43vnhtZuhgShJEbeV7VgF2GXGQBCxbbDravhltrGI+YKnAEd/RK0P0SJx+BXR7TcEv7zDg1QgXqfTewIDAQAB';
+
+      // Base64 decode
+      const binaryDerString = atob(publicKeyPemContent);
+      // Convert from a binary string to an ArrayBuffer
+      const binaryDer = stringToArrayBuffer(binaryDerString);
+
+      // Import asymmetric public key
+      restAPIDataSecurityServiceContext.crypto.subtle.importKey('spki', binaryDer, {
+        name: restAPIDataSecurityServiceContext.aSymmetricAlgo,
+        hash: restAPIDataSecurityServiceContext.digestAlgo,
+      }, true, ['encrypt'])
+        .then((publicKey) => {
+          restAPIDataSecurityServiceContext.aSymmetricPublicKey = publicKey;
+
+          // Generate the symmetric key
+          return restAPIDataSecurityServiceContext.crypto.subtle.generateKey({
+            name: restAPIDataSecurityServiceContext.symmetricAlgo,
+            length: restAPIDataSecurityServiceContext.symmetricKeyLength,
+          }, true, ['encrypt', 'decrypt']);
+        })
+        .then((symKey) => {
+          restAPIDataSecurityServiceContext.symmetricKey = symKey;
+
+          // Export the symmetric key for further use
+          return restAPIDataSecurityServiceContext.crypto.subtle.exportKey('raw', restAPIDataSecurityServiceContext.symmetricKey);
+        })
+        .then((symKeyData) => {
+          const symmetricKeyData = symKeyData;
+
+          // Encrypting the symmetric key with asymmetric key
+          return restAPIDataSecurityServiceContext.crypto.subtle.encrypt({
+            name: restAPIDataSecurityServiceContext.aSymmetricAlgo,
+            hash: {
+              name: restAPIDataSecurityServiceContext.digestAlgo,
+            },
+          }, restAPIDataSecurityServiceContext.aSymmetricPublicKey, symmetricKeyData);
+        })
+        .then((encSymmetricKeyBuf) => {
+          restAPIDataSecurityServiceContext.encSymmetricKey = btoa(arrayBufferToString(encSymmetricKeyBuf));
+
+          // Mark the initialization status
+          restAPIDataSecurityServiceContext.initStatus = true;
+
+          // Resolve the promise after successful initialization
+          resolve();
+        })
+        .catch((error) => {
+          // Handle any errors that occur during the process
+          reject(error);
+        });
+    });
+  }
+
+  /**
+       * Encrypts data
+       */
+  async function encryptDataES6(data) {
+    await initRestAPIDataSecurityServiceES6();
+    const dataStr = JSON.stringify(data);
+    const secret = restAPIDataSecurityServiceContext.crypto.getRandomValues(new Uint8Array(restAPIDataSecurityServiceContext.secretLength));
+    const dataBuf = stringToArrayBuffer(dataStr);
+
+    const dataEncBuf = await restAPIDataSecurityServiceContext.crypto.subtle.encrypt({
+      name: restAPIDataSecurityServiceContext.symmetricAlgo,
+      iv: secret,
+      tagLength: restAPIDataSecurityServiceContext.secretTagLength,
+    }, restAPIDataSecurityServiceContext.symmetricKey, dataBuf);
+
+    const dataEnc = btoa(arrayBufferToString(dataEncBuf));
+
+    const encSecretBuf = await restAPIDataSecurityServiceContext.crypto.subtle.encrypt({
+      name: restAPIDataSecurityServiceContext.aSymmetricAlgo,
+      hash: {
+        name: restAPIDataSecurityServiceContext.digestAlgo,
+      },
+    }, restAPIDataSecurityServiceContext.aSymmetricPublicKey, secret);
+
+    const encSecret = btoa(arrayBufferToString(encSecretBuf));
+
+    return {
+      dataEnc,
+      secret,
+      secretEnc: encSecret,
+      keyEnc: restAPIDataSecurityServiceContext.encSymmetricKey,
+      requestHeader: getDataEncRequestHeaders(restAPIDataSecurityServiceContext.encSymmetricKey),
+    };
+  }
+
+  /**
+         * @name invokeRestAPIWithDataSecurity
+         */
+  async function invokeRestAPIWithDataSecurity(data) {
+    try {
+      const response = await encryptDataES6(data);
+      return response;
+    } catch (error) {
+      console.error('Error in invoking REST API with data security:', error);
+      throw error;
+    }
+  }
+
+  async function decryptDataES6(encData, secret) {
+    try {
+      const encDataBuf = stringToArrayBuffer(atob(encData));
+      const dataEncBuf = await restAPIDataSecurityServiceContext.crypto.subtle.decrypt({
+        name: restAPIDataSecurityServiceContext.symmetricAlgo,
+        iv: secret,
+        tagLength: restAPIDataSecurityServiceContext.secretTagLength,
+      }, restAPIDataSecurityServiceContext.symmetricKey, encDataBuf);
+      const decData = arrayBufferToString(dataEncBuf);
+      return decData;
+    } catch (error) {
+      console.error(error);
+      return null; // Ensure the function always returns a value
+    }
+  }
+
+  let submitBaseUrl = '';
+
+  const localDev = ['aem.live', 'aem.page', 'localhost', 'hlx.live', 'hlx.page'];
+
+  function isLocalDev() {
+    // eslint-disable-next-line no-restricted-globals
+    if(typeof location !== 'undefined') {
+      const { hostname } = location;
+      return localDev.some((dev) => hostname.includes(dev));
+    }
+    return false;
+  }
+
+  if (isLocalDev()) {
+    submitBaseUrl = 'https://applyonline.hdfcbank.com';
+  }
+
+  function getSubmitBaseUrl() {
+    return submitBaseUrl;
+  }
+
+  // declare COMMON_CONSTANTS for all forms only.
+  // impoted as CONSTANT key name in all files
+
+  const BASEURL$1 = getSubmitBaseUrl();
+  const CHANNEL$2 = 'ADOBE_WEBFORMS';
+  const ENDPOINTS$2 = {
+    aadharCallback: '/content/hdfc_etb_wo_pacc/api/aadharCallback.json',
+    aadharInit: '/content/hdfc_haf/api/aadhaarInit.json',
+    fetchAuthCode: '/content/hdfc_commonforms/api/fetchauthcode.json',
+    emailId: '/content/hdfc_commonforms/api/emailid.json',
+    executeInterface: '/content/hdfc_haf/api/executeinterface.json',
+    finalDap: '/content/hdfc_haf/api/finalDap.json',
+    ipa: '/content/hdfc_haf/api/ipa.json',
+    journeyDropOff: '/content/hdfc_commonforms/api/journeydropoff.json',
+    journeyDropOffParam: '/content/hdfc_commonforms/api/journeydropoffparam.json',
+    journeyDropOffUpdate: '/content/hdfc_commonforms/api/journeydropoffupdate.json',
+    otpGen: '/content/hdfc_haf/api/otpgenerationccV4.json',
+    otpValFetchAssetDemog: '/content/hdfc_haf/api/otpvaldemogV4.json',
+    panValNameMatch: '/content/hdfc_forms_common_v2/api/panValNameMatch.json',
+    docUpload: '/content/hdfc_etb_wo_pacc/api/documentUpload.json',
+  };
+
+  const DEAD_PAN_STATUS = ['D', 'ED', 'X', 'F'];
+
+  const CURRENT_FORM_CONTEXT$1 = {};
+
+  const FORM_RUNTIME = {};
+
+  const ID_COM = {
+    productCode: 'CORPCC',
+    scopeMap: {
+      only_casa: {
+        no: 'AACC',
+        yes: 'ADOBE_PACC',
+      },
+      casa_asset: {
+        no: 'AACC',
+        yes: 'ADOBE_PACC',
+      },
+      casa_cc: 'PADC',
+      only_cc: 'OYCC',
+      casa_asset_cc: 'PADC',
+    },
+  };
+
+  const ENV = 'dev';
+
+  var CONSTANT = /*#__PURE__*/Object.freeze({
+    __proto__: null,
+    BASEURL: BASEURL$1,
+    CHANNEL: CHANNEL$2,
+    CURRENT_FORM_CONTEXT: CURRENT_FORM_CONTEXT$1,
+    DEAD_PAN_STATUS: DEAD_PAN_STATUS,
+    ENDPOINTS: ENDPOINTS$2,
+    ENV: ENV,
+    FORM_RUNTIME: FORM_RUNTIME,
+    ID_COM: ID_COM
+  });
+
   /**
    * Displays a loader with optional loading text.
    * @param {string} loadingText - The loading text to display (optional).
@@ -24,27 +284,52 @@
 
   /**
   * Initiates an http call with JSON payload to the specified URL using the specified method.
-  *
-  * @param {string} url - The URL to which the request is sent.
-  * @param {string} [method='POST'] - The HTTP method to use for the request (default is 'POST').
-  * @param {object} payload - The data payload to send with the request.
-  * @returns {*} - The JSON response from the server.
-  */
-  function fetchJsonResponse(url, payload, method, loader = false) {
-    // apiCall-fetch
-    return fetch(url, {
-      method,
-      body: payload ? JSON.stringify(payload) : null,
-      mode: 'cors',
-      headers: {
-        'Content-type': 'text/plain',
-        Accept: 'application/json',
-      },
-    })
-      .then((res) => {
-        if (loader) hideLoaderGif$1();
-        return res.json();
+   *
+   * @param {string} url - The URL to which the request is sent.
+   * @param {object} payload - The data payload to send with the request.
+   * @param {string} [method='POST'] - The HTTP method to use for the request (default is 'POST').
+   * @param {boolean} [loader=false] - Whether to hide the loader GIF after the response is received (default is false).
+   * @returns {Promise<*>} - A promise that resolves to the JSON response from the server.
+   */
+  // eslint-disable-next-line default-param-last
+  async function fetchJsonResponse(url, payload, method, loader = false) {
+    try {
+      if (ENV === 'dev') {
+        return fetch(url, {
+          method,
+          body: payload ? JSON.stringify(payload) : null,
+          mode: 'cors',
+          headers: {
+            'Content-type': 'text/plain',
+            Accept: 'application/json',
+          },
+        })
+          .then((res) => {
+            if (loader) hideLoaderGif$1();
+            return res.json();
+          });
+      }
+      const responseObj = await invokeRestAPIWithDataSecurity(payload);
+      const response = await fetch(url, {
+        method,
+        body: responseObj.dataEnc,
+        mode: 'cors',
+        headers: {
+          'Content-type': 'text/plain',
+          Accept: 'text/plain',
+          'X-Enckey': responseObj.keyEnc,
+          'X-Encsecret': responseObj.secretEnc,
+        },
       });
+      const result = await response.text();
+      const decryptedResult = await decryptDataES6(result, responseObj.secret);
+      if (loader) hideLoaderGif$1();
+      return JSON.parse(decryptedResult);
+    } catch (error) {
+      // eslint-disable-next-line no-console
+      console.error('Error in fetching JSON response:', error);
+      throw error;
+    }
   }
 
   /**
@@ -55,34 +340,56 @@
    * @param {object} payload - The data payload to send with the request.
    * @returns {*} - The JSON response from the server.
    */
-  function getJsonResponse(url, payload, method = 'POST') {
-    // apiCall-fetch
-    return fetch(url, {
-      method,
-      body: null,
-      mode: 'cors',
-      headers: {
-        'Content-type': 'text/plain',
-        Accept: 'application/json',
-      },
-    })
-      .then((res) => res.json())
-      .catch((err) => {
-        throw err;
+  async function getJsonResponse(url, payload, method = 'POST') {
+    try {
+      if (ENV === 'dev') {
+        return fetch(url, {
+          method,
+          body: payload ? JSON.stringify(payload) : null,
+          mode: 'cors',
+          headers: {
+            'Content-type': 'text/plain',
+            Accept: 'application/json',
+          },
+        })
+          .then((res) => res.json())
+          .catch((err) => {
+            throw err;
+          });
+      }
+      const responseObj = await invokeRestAPIWithDataSecurity(payload);
+      const response = await fetch(url, {
+        method,
+        body: responseObj.dataEnc,
+        mode: 'cors',
+        headers: {
+          'Content-type': 'text/plain',
+          Accept: 'text/plain',
+          'X-Enckey': responseObj.keyEnc,
+          'X-Encsecret': responseObj.secretEnc,
+        },
       });
+      const result = await response.text();
+      const decryptedResult = await decryptDataES6(result, responseObj.secret);
+      return JSON.parse(decryptedResult);
+    } catch (error) {
+      // eslint-disable-next-line no-console
+      console.error('Error in fetching JSON response:', error);
+      throw error;
+    }
   }
 
   const JOURNEY_NAME = 'SMART_EMI_JOURNEY';
   const PRO_CODE$1 = '009';
   const ERROR_MSG$1 = {
     mobileError: 'Enter valid mobile number',
-    noEligibleTxnFlow: "There are no eligible transactions on this card. Please try a different card."
+    noEligibleTxnFlow: 'There are no eligible transactions on this card. Please try a different card.',
   };
 
   const FLOWS_ERROR_MESSAGES$1 = {
-    "XFACE_INQ_VP_0003": "Hey, it seems like you have entered incorrect details. Request you to check & re-enter your last 4 digits of the card.",
-    "XFACE_E2FA_02": "Incorrect OTP code. Please try again.", // For this case error message is hardcoded in rule
-    "XFACE_E2FA_04": "Oops! you have entered wrong otp too many times please try again later"
+    XFACE_INQ_VP_0003: 'Hey, it seems like you have entered incorrect details. Request you to check & re-enter your last 4 digits of the card.',
+    XFACE_E2FA_02: 'Incorrect OTP code. Please try again.', // For this case error message is hardcoded in rule
+    XFACE_E2FA_04: 'Oops! you have entered wrong otp too many times please try again later',
   };
 
   const CHANNELS$1 = {
@@ -91,13 +398,13 @@
   };
 
   const SEMI_ENDPOINTS = {
-    otpGen: 'https://applyonlinedev.hdfcbank.com/content/hdfc_ccforms/api/validatecardotpgen.json',
-    otpVal: 'https://applyonlinedev.hdfcbank.com/content/hdfc_ccforms/api/eligibilitycheck.json',
-    preexecution: 'https://applyonlinedev.hdfcbank.com/content/hdfc_ccforms/api/preexecution.json',
-    masterChanel: 'https://applyonlinedev.hdfcbank.com/content/hdfc_commonforms/api/mdm.CREDIT.POST_ISSUANCE_CHANNEL_MASTER.json',
-    ccSmartEmi: 'https://applyonlinedev.hdfcbank.com/content/hdfc_ccforms/api/ccsmartemi.json',
-    branchMaster: 'https://applyonlinedev.hdfcbank.com/content/hdfc_commonforms/api/mdm.CREDIT.POST_ISSUANCE_BRANCH_MASTER.BRANCH_CODE',
-    dsaCode: 'https://applyonlinedev.hdfcbank.com/content/hdfc_commonforms/api/mdm.CREDIT.POST_ISSUANCE_DSA_MASTER.DSACODE',
+    otpGen: 'https://applyonline.hdfcbank.com/content/hdfc_ccforms/api/validatecardotpgen.json',
+    otpVal: 'https://applyonline.hdfcbank.com/content/hdfc_hafcards/api/eligibilitycheck.json',
+    preexecution: 'https://applyonline.hdfcbank.com/content/hdfc_ccforms/api/preexecution.json',
+    masterChanel: 'https://applyonline.hdfcbank.com/content/hdfc_commonforms/api/mdm.CREDIT.POST_ISSUANCE_CHANNEL_MASTER.json',
+    ccSmartEmi: 'https://applyonline.hdfcbank.com/content/hdfc_ccforms/api/ccsmartemi.json',
+    branchMaster: 'https://applyonline.hdfcbank.com/content/hdfc_commonforms/api/mdm.CREDIT.POST_ISSUANCE_BRANCH_MASTER.BRANCH_CODE',
+    dsaCode: 'https://applyonline.hdfcbank.com/content/hdfc_commonforms/api/mdm.CREDIT.POST_ISSUANCE_DSA_MASTER.DSACODE',
   };
 
   const DOM_ELEMENT = {
@@ -112,1372 +419,17 @@
 
   const OTP_TIMER = 30;
   const MAX_OTP_RESEND_COUNT = 3;
-  const CURRENT_FORM_CONTEXT$1 = {};
+  const CURRENT_FORM_CONTEXT = {};
   const DATA_LIMITS$1 = {
     totalSelectLimit: 10,
     otpTimeLimit: 30,
     maxOtpResendLimit: 3,
   };
-  const RESPONSE_PAYLOAD$1 = {
-    response: {
-      pseudoID: '',
-      blockCode: {
-        mad: '00000001960000',
-        bbvlogn_card_outst: '-00000001347935',
-        billingCycle: '19',
-        tad: '00000224980000',
-        cardNumber: '1012350000002025',
-      },
-      address: {
-        city: 'JALPAIGURI',
-        postalCode: '745202',
-        name: 'TEST FLOTRAPI TEST FLOTRAPI',
-        addressLine1: 'TESTING TESTING TESTING XX',
-        addressLine2: 'TEST TEST TEST TEST12',
-        addressLine3: 'TESTING TESTING123',
-        state: 'WB',
-        addressLine4: '',
-      },
-      ccBilledTxnResponse: {
-        responseString: [
-          {
-            date: '19-03-2021',
-            amount: 1123000,
-            AUTH_CODE: '',
-            STS: 'N',
-            LOGICMOD: '1',
-            name: '20 BILLED TXN',
-            lasttxnseqno: '22',
-            id: '80201',
-            PLANNO: '10002',
-          },
-          {
-            date: '19-02-2021',
-            amount: 9994000,
-            AUTH_CODE: '',
-            STS: 'N',
-            LOGICMOD: '1',
-            name: '20 BILLED TXN',
-            lasttxnseqno: '21',
-            id: '80193',
-            PLANNO: '10002',
-          },
-          {
-            date: '19-02-2021',
-            amount: 4300,
-            AUTH_CODE: '',
-            STS: 'N',
-            LOGICMOD: '1',
-            name: '20 BILLED TXN',
-            lasttxnseqno: '20',
-            id: '80185',
-            PLANNO: '10002',
-          },
-          {
-            date: '19-02-2021',
-            amount: 4200,
-            AUTH_CODE: '',
-            STS: 'N',
-            LOGICMOD: '1',
-            name: '20 BILLED TXN',
-            lasttxnseqno: '19',
-            id: '80177',
-            PLANNO: '10002',
-          },
-          {
-            date: '19-02-2021',
-            amount: 4100,
-            AUTH_CODE: '',
-            STS: 'N',
-            LOGICMOD: '1',
-            name: '20 BILLED TXN',
-            lasttxnseqno: '18',
-            id: '80169',
-            PLANNO: '10002',
-          },
-          {
-            date: '19-02-2020',
-            amount: 998000,
-            AUTH_CODE: '',
-            STS: 'N',
-            LOGICMOD: '1',
-            name: '20 BILLED TXN',
-            lasttxnseqno: '17',
-            id: '80151',
-            PLANNO: '10002',
-          },
-          {
-            date: '19-02-2022',
-            amount: 3900,
-            AUTH_CODE: '',
-            STS: 'N',
-            LOGICMOD: '1',
-            name: '20 BILLED TXN',
-            lasttxnseqno: '16',
-            id: '80144',
-            PLANNO: '10002',
-          },
-          {
-            date: '19-02-2021',
-            amount: 3800,
-            AUTH_CODE: '',
-            STS: 'N',
-            LOGICMOD: '1',
-            name: '20 BILLED TXN',
-            lasttxnseqno: '15',
-            id: '80136',
-            PLANNO: '10002',
-          },
-          {
-            date: '19-08-2022',
-            amount: 3700,
-            AUTH_CODE: '',
-            STS: 'N',
-            LOGICMOD: '1',
-            name: '20 BILLED TXN',
-            lasttxnseqno: '14',
-            id: '80128',
-            PLANNO: '10002',
-          },
-          {
-            date: '19-02-2021',
-            amount: 971000,
-            AUTH_CODE: '',
-            STS: 'N',
-            LOGICMOD: '1',
-            name: '20 BILLED TXN',
-            lasttxnseqno: '13',
-            id: '80110',
-            PLANNO: '10002',
-          },
-          {
-            date: '19-02-2021',
-            amount: 3400,
-            AUTH_CODE: '',
-            STS: 'N',
-            LOGICMOD: '1',
-            name: '20 BILLED TXN',
-            lasttxnseqno: '11',
-            id: '80094',
-            PLANNO: '10002',
-          },
-          {
-            date: '19-05-2024',
-            amount: 3300,
-            AUTH_CODE: '',
-            STS: 'N',
-            LOGICMOD: '1',
-            name: '20 BILLED TXN',
-            lasttxnseqno: '10',
-            id: '80086',
-            PLANNO: '10002',
-          },
-          {
-            date: '19-02-2021',
-            amount: 3200,
-            AUTH_CODE: '',
-            STS: 'N',
-            LOGICMOD: '1',
-            name: '20 BILLED TXN',
-            lasttxnseqno: '9',
-            id: '80078',
-            PLANNO: '10002',
-          },
-          {
-            date: '19-02-2021',
-            amount: 3100,
-            AUTH_CODE: '',
-            STS: 'N',
-            LOGICMOD: '1',
-            name: '20 BILLED TXN',
-            lasttxnseqno: '8',
-            id: '80060',
-            PLANNO: '10002',
-          },
-          {
-            date: '19-02-2021',
-            amount: 3000,
-            AUTH_CODE: '',
-            STS: 'N',
-            LOGICMOD: '1',
-            name: '20 BILLED TXN',
-            lasttxnseqno: '7',
-            id: '80052',
-            PLANNO: '10002',
-          },
-          {
-            date: '19-02-2021',
-            amount: 2900,
-            AUTH_CODE: '',
-            STS: 'N',
-            LOGICMOD: '1',
-            name: '20 BILLED TXN',
-            lasttxnseqno: '6',
-            id: '80045',
-            PLANNO: '10002',
-          },
-          {
-            date: '19-02-2021',
-            amount: 2800,
-            AUTH_CODE: '',
-            STS: 'N',
-            LOGICMOD: '1',
-            name: '20 BILLED TXN',
-            lasttxnseqno: '5',
-            id: '80037',
-            PLANNO: '10002',
-          },
-          {
-            date: '19-02-2021',
-            amount: 2700,
-            AUTH_CODE: '',
-            STS: 'N',
-            LOGICMOD: '1',
-            name: '20 BILLED TXN',
-            lasttxnseqno: '4',
-            id: '80029',
-            PLANNO: '10002',
-          },
-          {
-            date: '19-02-2021',
-            amount: 2600,
-            AUTH_CODE: '',
-            STS: 'N',
-            LOGICMOD: '1',
-            name: '20 BILLED TXN',
-            lasttxnseqno: '3',
-            id: '80011',
-            PLANNO: '10002',
-          },
-          {
-            date: '17-02-2021',
-            amount: 4500,
-            AUTH_CODE: '',
-            STS: 'N',
-            LOGICMOD: '1',
-            name: '20 BILLED TXN',
-            lasttxnseqno: '43',
-            id: '70206',
-            PLANNO: '10002',
-          },
-          {
-            date: '17-02-2021',
-            amount: 4400,
-            AUTH_CODE: '',
-            STS: 'N',
-            LOGICMOD: '1',
-            name: '20 BILLED TXN',
-            lasttxnseqno: '42',
-            id: '70198',
-            PLANNO: '10002',
-          },
-          {
-            date: '17-02-2021',
-            amount: 4300,
-            AUTH_CODE: '',
-            STS: 'N',
-            LOGICMOD: '1',
-            name: '20 BILLED TXN',
-            lasttxnseqno: '41',
-            id: '70180',
-            PLANNO: '10002',
-          },
-          {
-            date: '17-02-2021',
-            amount: 4200,
-            AUTH_CODE: '',
-            STS: 'N',
-            LOGICMOD: '1',
-            name: '20 BILLED TXN',
-            lasttxnseqno: '40',
-            id: '70172',
-            PLANNO: '10002',
-          },
-          {
-            date: '17-02-2021',
-            amount: 4100,
-            AUTH_CODE: '',
-            STS: 'N',
-            LOGICMOD: '1',
-            name: '20 BILLED TXN',
-            lasttxnseqno: '39',
-            id: '70164',
-            PLANNO: '10002',
-          },
-          {
-            date: '17-02-2021',
-            amount: 4000,
-            AUTH_CODE: '',
-            STS: 'N',
-            LOGICMOD: '1',
-            name: '20 BILLED TXN',
-            lasttxnseqno: '38',
-            id: '70156',
-            PLANNO: '10002',
-          },
-          {
-            date: '17-02-2021',
-            amount: 3900,
-            AUTH_CODE: '',
-            STS: 'N',
-            LOGICMOD: '1',
-            name: '20 BILLED TXN',
-            lasttxnseqno: '37',
-            id: '70149',
-            PLANNO: '10002',
-          },
-          {
-            date: '17-02-2021',
-            amount: 3800,
-            AUTH_CODE: '',
-            STS: 'N',
-            LOGICMOD: '1',
-            name: '20 BILLED TXN',
-            lasttxnseqno: '36',
-            id: '70131',
-            PLANNO: '10002',
-          },
-          {
-            date: '17-02-2021',
-            amount: 3700,
-            AUTH_CODE: '',
-            STS: 'N',
-            LOGICMOD: '1',
-            name: '20 BILLED TXN',
-            lasttxnseqno: '35',
-            id: '70123',
-            PLANNO: '10002',
-          },
-          {
-            date: '17-02-2021',
-            amount: 3600,
-            AUTH_CODE: '',
-            STS: 'N',
-            LOGICMOD: '1',
-            name: '20 BILLED TXN',
-            lasttxnseqno: '34',
-            id: '70115',
-            PLANNO: '10002',
-          },
-          {
-            date: '17-02-2021',
-            amount: 3500,
-            AUTH_CODE: '',
-            STS: 'N',
-            LOGICMOD: '1',
-            name: '20 BILLED TXN',
-            lasttxnseqno: '33',
-            id: '70107',
-            PLANNO: '10002',
-          },
-          {
-            date: '17-02-2021',
-            amount: 3400,
-            AUTH_CODE: '',
-            STS: 'N',
-            LOGICMOD: '1',
-            name: '20 BILLED TXN',
-            lasttxnseqno: '32',
-            id: '70099',
-            PLANNO: '10002',
-          },
-          {
-            date: '17-02-2021',
-            amount: 3300,
-            AUTH_CODE: '',
-            STS: 'N',
-            LOGICMOD: '1',
-            name: '20 BILLED TXN',
-            lasttxnseqno: '31',
-            id: '70081',
-            PLANNO: '10002',
-          },
-          {
-            date: '17-02-2021',
-            amount: 3200,
-            AUTH_CODE: '',
-            STS: 'N',
-            LOGICMOD: '1',
-            name: '20 BILLED TXN',
-            lasttxnseqno: '30',
-            id: '70073',
-            PLANNO: '10002',
-          },
-          {
-            date: '17-02-2021',
-            amount: 3100,
-            AUTH_CODE: '',
-            STS: 'N',
-            LOGICMOD: '1',
-            name: '20 BILLED TXN',
-            lasttxnseqno: '29',
-            id: '70065',
-            PLANNO: '10002',
-          },
-          {
-            date: '17-02-2021',
-            amount: 3000,
-            AUTH_CODE: '',
-            STS: 'N',
-            LOGICMOD: '1',
-            name: '20 BILLED TXN',
-            lasttxnseqno: '28',
-            id: '70057',
-            PLANNO: '10002',
-          },
-          {
-            date: '17-02-2021',
-            amount: 2900,
-            AUTH_CODE: '',
-            STS: 'N',
-            LOGICMOD: '1',
-            name: '20 BILLED TXN',
-            lasttxnseqno: '27',
-            id: '70040',
-            PLANNO: '10002',
-          },
-          {
-            date: '17-02-2021',
-            amount: 2800,
-            AUTH_CODE: '',
-            STS: 'N',
-            LOGICMOD: '1',
-            name: '20 BILLED TXN',
-            lasttxnseqno: '26',
-            id: '70032',
-            PLANNO: '10002',
-          },
-          {
-            date: '17-02-2021',
-            amount: 2700,
-            AUTH_CODE: '',
-            STS: 'N',
-            LOGICMOD: '1',
-            name: '20 BILLED TXN',
-            lasttxnseqno: '25',
-            id: '70024',
-            PLANNO: '10002',
-          },
-          {
-            date: '17-02-2021',
-            amount: 2600,
-            AUTH_CODE: '',
-            STS: 'N',
-            LOGICMOD: '1',
-            name: '20 BILLED TXN',
-            lasttxnseqno: '24',
-            id: '70016',
-            PLANNO: '10002',
-          },
-          {
-            date: '13-02-2021',
-            amount: 4600,
-            AUTH_CODE: '',
-            STS: 'N',
-            LOGICMOD: '1',
-            name: '20 UNBILLED TXN',
-            lasttxnseqno: '23',
-            id: '20218',
-            PLANNO: '10002',
-          },
-          {
-            date: '13-02-2021',
-            amount: 4500,
-            AUTH_CODE: '',
-            STS: 'N',
-            LOGICMOD: '1',
-            name: '20 UNBILLED TXN',
-            lasttxnseqno: '22',
-            id: '20200',
-            PLANNO: '10002',
-          },
-          {
-            date: '13-02-2021',
-            amount: 4400,
-            AUTH_CODE: '',
-            STS: 'N',
-            LOGICMOD: '1',
-            name: '20 UNBILLED TXN',
-            lasttxnseqno: '21',
-            id: '20192',
-            PLANNO: '10002',
-          },
-          {
-            date: '13-02-2021',
-            amount: 4300,
-            AUTH_CODE: '',
-            STS: 'N',
-            LOGICMOD: '1',
-            name: '20 UNBILLED TXN',
-            lasttxnseqno: '20',
-            id: '20184',
-            PLANNO: '10002',
-          },
-          {
-            date: '13-02-2021',
-            amount: 4200,
-            AUTH_CODE: '',
-            STS: 'N',
-            LOGICMOD: '1',
-            name: '20 UNBILLED TXN',
-            lasttxnseqno: '19',
-            id: '20176',
-            PLANNO: '10002',
-          },
-          {
-            date: '13-02-2021',
-            amount: 4100,
-            AUTH_CODE: '',
-            STS: 'N',
-            LOGICMOD: '1',
-            name: '20 UNBILLED TXN',
-            lasttxnseqno: '18',
-            id: '20168',
-            PLANNO: '10002',
-          },
-          {
-            date: '13-02-2021',
-            amount: 4000,
-            AUTH_CODE: '',
-            STS: 'N',
-            LOGICMOD: '1',
-            name: '20 UNBILLED TXN',
-            lasttxnseqno: '17',
-            id: '20150',
-            PLANNO: '10002',
-          },
-          {
-            date: '13-02-2021',
-            amount: 3900,
-            AUTH_CODE: '',
-            STS: 'N',
-            LOGICMOD: '1',
-            name: '20 UNBILLED TXN',
-            lasttxnseqno: '16',
-            id: '20143',
-            PLANNO: '10002',
-          },
-          {
-            date: '17-02-2021',
-            amount: 4500,
-            AUTH_CODE: '',
-            STS: 'N',
-            LOGICMOD: '1',
-            name: '20 BILLED TXN',
-            lasttxnseqno: '43',
-            id: '70206',
-            PLANNO: '10002',
-          },
-          {
-            date: '17-02-2021',
-            amount: 4400,
-            AUTH_CODE: '',
-            STS: 'N',
-            LOGICMOD: '1',
-            name: '20 BILLED TXN',
-            lasttxnseqno: '42',
-            id: '70198',
-            PLANNO: '10002',
-          },
-          {
-            date: '17-02-2021',
-            amount: 4300,
-            AUTH_CODE: '',
-            STS: 'N',
-            LOGICMOD: '1',
-            name: '20 BILLED TXN',
-            lasttxnseqno: '41',
-            id: '70180',
-            PLANNO: '10002',
-          },
-          {
-            date: '17-02-2021',
-            amount: 4200,
-            AUTH_CODE: '',
-            STS: 'N',
-            LOGICMOD: '1',
-            name: '20 BILLED TXN',
-            lasttxnseqno: '40',
-            id: '70172',
-            PLANNO: '10002',
-          },
-          {
-            date: '17-02-2021',
-            amount: 4100,
-            AUTH_CODE: '',
-            STS: 'N',
-            LOGICMOD: '1',
-            name: '20 BILLED TXN',
-            lasttxnseqno: '39',
-            id: '70164',
-            PLANNO: '10002',
-          },
-          {
-            date: '17-02-2021',
-            amount: 4000,
-            AUTH_CODE: '',
-            STS: 'N',
-            LOGICMOD: '1',
-            name: '20 BILLED TXN',
-            lasttxnseqno: '38',
-            id: '70156',
-            PLANNO: '10002',
-          },
-          {
-            date: '17-02-2021',
-            amount: 3900,
-            AUTH_CODE: '',
-            STS: 'N',
-            LOGICMOD: '1',
-            name: '20 BILLED TXN',
-            lasttxnseqno: '37',
-            id: '70149',
-            PLANNO: '10002',
-          },
-          {
-            date: '17-02-2021',
-            amount: 3800,
-            AUTH_CODE: '',
-            STS: 'N',
-            LOGICMOD: '1',
-            name: '20 BILLED TXN',
-            lasttxnseqno: '36',
-            id: '70131',
-            PLANNO: '10002',
-          },
-          {
-            date: '17-02-2021',
-            amount: 3700,
-            AUTH_CODE: '',
-            STS: 'N',
-            LOGICMOD: '1',
-            name: '20 BILLED TXN',
-            lasttxnseqno: '35',
-            id: '70123',
-            PLANNO: '10002',
-          },
-          {
-            date: '17-02-2021',
-            amount: 3600,
-            AUTH_CODE: '',
-            STS: 'N',
-            LOGICMOD: '1',
-            name: '20 BILLED TXN',
-            lasttxnseqno: '34',
-            id: '70115',
-            PLANNO: '10002',
-          },
-          {
-            date: '17-02-2021',
-            amount: 3500,
-            AUTH_CODE: '',
-            STS: 'N',
-            LOGICMOD: '1',
-            name: '20 BILLED TXN',
-            lasttxnseqno: '33',
-            id: '70107',
-            PLANNO: '10002',
-          },
-          {
-            date: '17-02-2021',
-            amount: 3400,
-            AUTH_CODE: '',
-            STS: 'N',
-            LOGICMOD: '1',
-            name: '20 BILLED TXN',
-            lasttxnseqno: '32',
-            id: '70099',
-            PLANNO: '10002',
-          },
-          {
-            date: '17-02-2021',
-            amount: 3300,
-            AUTH_CODE: '',
-            STS: 'N',
-            LOGICMOD: '1',
-            name: '20 BILLED TXN',
-            lasttxnseqno: '31',
-            id: '70081',
-            PLANNO: '10002',
-          },
-          {
-            date: '17-02-2021',
-            amount: 3200,
-            AUTH_CODE: '',
-            STS: 'N',
-            LOGICMOD: '1',
-            name: '20 BILLED TXN',
-            lasttxnseqno: '30',
-            id: '70073',
-            PLANNO: '10002',
-          },
-          {
-            date: '17-02-2021',
-            amount: 3100,
-            AUTH_CODE: '',
-            STS: 'N',
-            LOGICMOD: '1',
-            name: '20 BILLED TXN',
-            lasttxnseqno: '29',
-            id: '70065',
-            PLANNO: '10002',
-          },
-          {
-            date: '17-02-2021',
-            amount: 3000,
-            AUTH_CODE: '',
-            STS: 'N',
-            LOGICMOD: '1',
-            name: '20 BILLED TXN',
-            lasttxnseqno: '28',
-            id: '70057',
-            PLANNO: '10002',
-          },
-          {
-            date: '17-02-2021',
-            amount: 2900,
-            AUTH_CODE: '',
-            STS: 'N',
-            LOGICMOD: '1',
-            name: '20 BILLED TXN',
-            lasttxnseqno: '27',
-            id: '70040',
-            PLANNO: '10002',
-          },
-          {
-            date: '17-02-2021',
-            amount: 2800,
-            AUTH_CODE: '',
-            STS: 'N',
-            LOGICMOD: '1',
-            name: '20 BILLED TXN',
-            lasttxnseqno: '26',
-            id: '70032',
-            PLANNO: '10002',
-          },
-          {
-            date: '17-02-2021',
-            amount: 2700,
-            AUTH_CODE: '',
-            STS: 'N',
-            LOGICMOD: '1',
-            name: '20 BILLED TXN',
-            lasttxnseqno: '25',
-            id: '70024',
-            PLANNO: '10002',
-          },
-          {
-            date: '17-02-2021',
-            amount: 2600,
-            AUTH_CODE: '',
-            STS: 'N',
-            LOGICMOD: '1',
-            name: '20 BILLED TXN',
-            lasttxnseqno: '24',
-            id: '70016',
-            PLANNO: '10002',
-          },
-          {
-            date: '13-02-2021',
-            amount: 4600,
-            AUTH_CODE: '',
-            STS: 'N',
-            LOGICMOD: '1',
-            name: '20 UNBILLED TXN',
-            lasttxnseqno: '23',
-            id: '20218',
-            PLANNO: '10002',
-          },
-          {
-            date: '13-02-2021',
-            amount: 4500,
-            AUTH_CODE: '',
-            STS: 'N',
-            LOGICMOD: '1',
-            name: '20 UNBILLED TXN',
-            lasttxnseqno: '22',
-            id: '20200',
-            PLANNO: '10002',
-          },
-          {
-            date: '13-02-2021',
-            amount: 4400,
-            AUTH_CODE: '',
-            STS: 'N',
-            LOGICMOD: '1',
-            name: '20 UNBILLED TXN',
-            lasttxnseqno: '21',
-            id: '20192',
-            PLANNO: '10002',
-          },
-          {
-            date: '13-02-2021',
-            amount: 4300,
-            AUTH_CODE: '',
-            STS: 'N',
-            LOGICMOD: '1',
-            name: '20 UNBILLED TXN',
-            lasttxnseqno: '20',
-            id: '20184',
-            PLANNO: '10002',
-          },
-          {
-            date: '13-02-2021',
-            amount: 4200,
-            AUTH_CODE: '',
-            STS: 'N',
-            LOGICMOD: '1',
-            name: '20 UNBILLED TXN',
-            lasttxnseqno: '19',
-            id: '20176',
-            PLANNO: '10002',
-          },
-          {
-            date: '13-02-2021',
-            amount: 4100,
-            AUTH_CODE: '',
-            STS: 'N',
-            LOGICMOD: '1',
-            name: '20 UNBILLED TXN',
-            lasttxnseqno: '18',
-            id: '20168',
-            PLANNO: '10002',
-          },
-          {
-            date: '13-02-2021',
-            amount: 4000,
-            AUTH_CODE: '',
-            STS: 'N',
-            LOGICMOD: '1',
-            name: '20 UNBILLED TXN',
-            lasttxnseqno: '17',
-            id: '20150',
-            PLANNO: '10002',
-          },
-          {
-            date: '13-02-2021',
-            amount: 3900,
-            AUTH_CODE: '',
-            STS: 'N',
-            LOGICMOD: '1',
-            name: '20 UNBILLED TXN',
-            lasttxnseqno: '16',
-            id: '20143',
-            PLANNO: '10002',
-          },
-          {
-            date: '13-02-2021',
-            amount: 3800,
-            AUTH_CODE: '',
-            STS: 'N',
-            LOGICMOD: '1',
-            name: '20 UNBILLED TXN',
-            lasttxnseqno: '15',
-            id: '20135',
-            PLANNO: '10002',
-          },
-          {
-            date: '13-02-2021',
-            amount: 3700,
-            AUTH_CODE: '',
-            STS: 'N',
-            LOGICMOD: '1',
-            name: '20 UNBILLED TXN',
-            lasttxnseqno: '14',
-            id: '20127',
-            PLANNO: '10002',
-          },
-          {
-            date: '13-02-2021',
-            amount: 3600,
-            AUTH_CODE: '',
-            STS: 'N',
-            LOGICMOD: '1',
-            name: '20 UNBILLED TXN',
-            lasttxnseqno: '13',
-            id: '20119',
-            PLANNO: '10002',
-          },
-          {
-            date: '13-02-2021',
-            amount: 3500,
-            AUTH_CODE: '',
-            STS: 'N',
-            LOGICMOD: '1',
-            name: '20 UNBILLED TXN',
-            lasttxnseqno: '12',
-            id: '20101',
-            PLANNO: '10002',
-          },
-          {
-            date: '13-02-2021',
-            amount: 3400,
-            AUTH_CODE: '',
-            STS: 'N',
-            LOGICMOD: '1',
-            name: '20 UNBILLED TXN',
-            lasttxnseqno: '11',
-            id: '20093',
-            PLANNO: '10002',
-          },
-          {
-            date: '13-02-2021',
-            amount: 3300,
-            AUTH_CODE: '',
-            STS: 'N',
-            LOGICMOD: '1',
-            name: '20 UNBILLED TXN',
-            lasttxnseqno: '10',
-            id: '20085',
-            PLANNO: '10002',
-          },
-          {
-            date: '13-02-2021',
-            amount: 3200,
-            AUTH_CODE: '',
-            STS: 'N',
-            LOGICMOD: '1',
-            name: '20 UNBILLED TXN',
-            lasttxnseqno: '9',
-            id: '20077',
-            PLANNO: '10002',
-          },
-          {
-            date: '13-02-2021',
-            amount: 3100,
-            AUTH_CODE: '',
-            STS: 'N',
-            LOGICMOD: '1',
-            name: '20 UNBILLED TXN',
-            lasttxnseqno: '8',
-            id: '20069',
-            PLANNO: '10002',
-          },
-          {
-            date: '13-02-2021',
-            amount: 3000,
-            AUTH_CODE: '',
-            STS: 'N',
-            LOGICMOD: '1',
-            name: '20 UNBILLED TXN',
-            lasttxnseqno: '7',
-            id: '20051',
-            PLANNO: '10002',
-          },
-          {
-            date: '13-02-2021',
-            amount: 2900,
-            AUTH_CODE: '',
-            STS: 'N',
-            LOGICMOD: '1',
-            name: '20 UNBILLED TXN',
-            lasttxnseqno: '6',
-            id: '20044',
-            PLANNO: '10002',
-          },
-          {
-            date: '13-02-2021',
-            amount: 2800,
-            AUTH_CODE: '',
-            STS: 'N',
-            LOGICMOD: '1',
-            name: '20 UNBILLED TXN',
-            lasttxnseqno: '5',
-            id: '20036',
-            PLANNO: '10002',
-          },
-          {
-            date: '13-02-2021',
-            amount: 2700,
-            AUTH_CODE: '',
-            STS: 'N',
-            LOGICMOD: '1',
-            name: '20 UNBILLED TXN',
-            lasttxnseqno: '4',
-            id: '20028',
-            PLANNO: '10002',
-          },
-          {
-            date: '13-02-2021',
-            amount: 2600,
-            AUTH_CODE: '',
-            STS: 'N',
-            LOGICMOD: '1',
-            name: '20 UNBILLED TXN',
-            lasttxnseqno: '3',
-            id: '20010',
-            PLANNO: '10002',
-          },
-          {
-            date: '17-01-2021',
-            amount: 10000,
-            AUTH_CODE: '',
-            STS: 'N',
-            LOGICMOD: '11',
-            name: 'FIRST YEAR MEMBERSHIP FEE',
-            lasttxnseqno: '3',
-            id: '90080',
-            PLANNO: '10002',
-          },
-        ],
-        status: {
-          errorCode: '0',
-          errorMsg: '0',
-        },
-      },
-      responseString: {
-        relationNumber: '0001010000000245767',
-        primaryCardHolderName: 'TEST FLOTRAPI TEST',
-        records: [
-          {
-            maxEligibleAmt: '00000000000700000',
-            procWaiv2: '00',
-            procWaiv4: '00',
-            procWaiv3: '00',
-            period4: '018',
-            period3: '012',
-            procWaiv5: '0',
-            period2: '006',
-            maximumProcessingFee5: '>9999999 99',
-            plan: '00000',
-            maximumProcessingFee4: '00',
-            maximumProcessingFee3: '00',
-            period5: '024',
-            maximumProcessingFee2: '00',
-            period: '003',
-            minimumProcessingFee2: '00',
-            thresholdAmount5: '000000000000',
-            maximumProcessingFeeRedef2: '00',
-            minimumProcessingFee4: '00',
-            thresholdAmount4: '000000000000',
-            minimumProcessingFee3: '00',
-            thresholdAmount3: '000000000000',
-            processingFeeRedef: '799 00',
-            maximumProcessingFeeRedef4: '00',
-            maximumProcessingFeeRedef3: '00',
-            percentageRedef: '> 00',
-            maximumProcessingFeeRedef5: '>9999999 99',
-            thresholdAmount2: '000000000000',
-            interestX4: '01500',
-            minimumProcessingFeeRedef: '00',
-            interestX5: '01600',
-            minimumProcessingFee5: '00',
-            interestX2: '01188',
-            interestX3: '02488',
-            planDescription: '',
-            proCode: '009',
-            thresholdAmountRedef2: '000000000000',
-            prodId: '00009',
-            thresholdAmountRedef4: '000000000000',
-            thresholdAmountRedef3: '000000000000',
-            thresholdAmountRedef5: '000000000000',
-            percentage2: '00',
-            memoLine1: '499',
-            percentage3: '> 00',
-            feeWaiverFlg: '0',
-            percentage4: '00',
-            percentage5: '00',
-            memoLine4: 'MEMOLINE004',
-            memoLine3: 'MEMOLINE003',
-            memoLine2: 'MEMOLINE002',
-            plan5: '00000',
-            plan2: '00000',
-            plan3: '00000',
-            plan4: '00000',
-            interestR2: '1188',
-            interestR3: '2488',
-            planDescription5: '',
-            planDescription3: '',
-            interestR4: '1500',
-            planDescription4: '',
-            interestR5: '1600',
-            planDescription2: '',
-            processingFee5: '99 00',
-            processingFee4: '799 00',
-            processingFee3: '799 00',
-            processingFeeRedef3: '799 00',
-            thresholdAmountRedef: '000000000000',
-            processingFeeRedef4: '799 00',
-            processingFeeRedef5: '99 00',
-            processingFee: '799 00',
-            tid: '000000106',
-            processingFeeRedef2: '799 00',
-            interestO: '0',
-            minimumProcessingFee: '00',
-            percentage: '> 00',
-            logo: '000',
-            interestX: '03088',
-            prodDesc: 'SMART EMI DIAL AN EMI',
-            interestR: '3088',
-            eligibleAmtPercent: 'A',
-            tid5: '000000192',
-            tid3: '000000109',
-            tid4: '000000113',
-            tid2: '000000101',
-            processingFee2: '799 00',
-            interest3: '02488',
-            interest2: '01188',
-            interest5: '01600',
-            interest4: '01500',
-            encryptedToken: '[B@12a3a380TMDAwMTAxMjM1MDAwMDAwMjAyNTAwMDAwMDAwMDAwMDAwMDA=',
-            maximumProcessingFee: '00',
-            percentageRedef3: '> 00',
-            percentageRedef2: '00',
-            logo2: '000',
-            interestO5: '0',
-            maximumProcessingFeeRedef: '00',
-            minimumProcessingFeeRedef5: '00',
-            percentageRedef5: '00',
-            percentageRedef4: '00',
-            minimumProcessingFeeRedef2: '00',
-            minimumProcessingFeeRedef3: '00',
-            minimumProcessingFeeRedef4: '00',
-            logo4: '000',
-            logo3: '000',
-            procWaivredef5: '0',
-            logo5: '000',
-            procWaivredef2: '00',
-            procWaivredef4: '00',
-            procWaivredef3: '00',
-            interest: '03088',
-            eligible: 'Y',
-            eligibleAmt: '00000000000700000',
-            interestO3: '0',
-            interestO4: '0',
-            interestO2: '0',
-            thresholdAmount: '000000000000',
-            savingAcctNumber: '0000000000000000',
-            processingFeeFlag: 'F',
-            processingFeeFlag4: 'F',
-            processingFeeFlag3: 'F',
-            processingFeeFlag5: 'F',
-            procWaiv: '00',
-            processingFeeFlag2: 'F',
-          },
-        ],
-        custNumber: '0001012350000002025',
-        creditLimit: '000300000',
-        aanNumber: '0001012350000002025',
-      },
-      cardHolderName: 'TEST FLOTRAPI TEST FLOTRAPI',
-      ccUnBilledTxnResponse: {
-        responseString: [
-          {
-            date: '23-02-2021',
-            authcode: '',
-            amount: ' 00000000410000',
-            STS: 'N',
-            LOGICMOD: '01',
-            name: '20 UNBILLED TXN                         ',
-            lasttxnseqno: '00016',
-            id: '60167 ',
-            PLANNO: '10002',
-          },
-          {
-            date: '23-02-2021',
-            authcode: '',
-            amount: ' 00000000400000',
-            STS: 'N',
-            LOGICMOD: '01',
-            name: '20 UNBILLED TXN                         ',
-            lasttxnseqno: '00015',
-            id: '60159 ',
-            PLANNO: '10002',
-          },
-          {
-            date: '23-02-2021',
-            authcode: '',
-            amount: ' 00000000390000',
-            STS: 'N',
-            LOGICMOD: '01',
-            name: '20 UNBILLED TXN                         ',
-            lasttxnseqno: '00014',
-            id: '60142 ',
-            PLANNO: '10002',
-          },
-          {
-            date: '23-02-2021',
-            authcode: '',
-            amount: ' 00000000380000',
-            STS: 'N',
-            LOGICMOD: '01',
-            name: '20 UNBILLED TXN                         ',
-            lasttxnseqno: '00013',
-            id: '60134 ',
-            PLANNO: '10002',
-          },
-          {
-            date: '23-02-2021',
-            authcode: '',
-            amount: ' 00000000370000',
-            STS: 'N',
-            LOGICMOD: '01',
-            name: '20 UNBILLED TXN                         ',
-            lasttxnseqno: '00012',
-            id: '60126 ',
-            PLANNO: '10002',
-          },
-          {
-            date: '23-02-2021',
-            authcode: '',
-            amount: ' 00000000360000',
-            STS: 'N',
-            LOGICMOD: '01',
-            name: '20 UNBILLED TXN                         ',
-            lasttxnseqno: '00011',
-            id: '60118 ',
-            PLANNO: '10002',
-          },
-          {
-            date: '23-02-2021',
-            authcode: '',
-            amount: ' 00000000350000',
-            STS: 'N',
-            LOGICMOD: '01',
-            name: '20 UNBILLED TXN                         ',
-            lasttxnseqno: '00010',
-            id: '60100 ',
-            PLANNO: '10002',
-          },
-          {
-            date: '23-02-2021',
-            authcode: '',
-            amount: ' 00000000440000',
-            STS: 'N',
-            LOGICMOD: '01',
-            name: '20 UNBILLED TXN                         ',
-            lasttxnseqno: '00009',
-            id: '60092 ',
-            PLANNO: '10002',
-          },
-          {
-            date: '23-02-2021',
-            authcode: '',
-            amount: ' 00000000330000',
-            STS: 'N',
-            LOGICMOD: '01',
-            name: '20 UNBILLED TXN                         ',
-            lasttxnseqno: '00008',
-            id: '60084 ',
-            PLANNO: '10002',
-          },
-          {
-            date: '23-01-2021',
-            authcode: '',
-            amount: ' 00000000620000',
-            STS: 'N',
-            LOGICMOD: '01',
-            name: '20 UNBILLED TXN                         ',
-            lasttxnseqno: '00007',
-            id: '60076 ',
-            PLANNO: '10002',
-          },
-          {
-            date: '23-02-2021',
-            authcode: '',
-            amount: ' 00000000710000',
-            STS: 'N',
-            LOGICMOD: '01',
-            name: '20 UNBILLED TXN                         ',
-            lasttxnseqno: '00006',
-            id: '60068 ',
-            PLANNO: '10002',
-          },
-          {
-            date: '23-02-2021',
-            authcode: '',
-            amount: ' 00000000300000',
-            STS: 'N',
-            LOGICMOD: '01',
-            name: '20 UNBILLED TXN                         ',
-            lasttxnseqno: '00005',
-            id: '60050 ',
-            PLANNO: '10002',
-          },
-          {
-            date: '23-02-2021',
-            authcode: '',
-            amount: ' 00000000290000',
-            STS: 'N',
-            LOGICMOD: '01',
-            name: '20 UNBILLED TXN                         ',
-            lasttxnseqno: '00004',
-            id: '60043 ',
-            PLANNO: '10002',
-          },
-          {
-            date: '23-02-2021',
-            authcode: '',
-            amount: ' 00000000280000',
-            STS: 'N',
-            LOGICMOD: '01',
-            name: '20 UNBILLED TXN                         ',
-            lasttxnseqno: '00003',
-            id: '60035 ',
-            PLANNO: '10002',
-          },
-          {
-            date: '23-02-2022',
-            authcode: '',
-            amount: ' 00000000970000',
-            STS: 'N',
-            LOGICMOD: '01',
-            name: '20 UNBILLED TXN                         ',
-            lasttxnseqno: '00002',
-            id: '60027 ',
-            PLANNO: '10002',
-          },
-          {
-            date: '23-02-2023',
-            authcode: '',
-            amount: ' 00000000260000',
-            STS: 'N',
-            LOGICMOD: '01',
-            name: '20 UNBILLED TXN                         ',
-            lasttxnseqno: '00001',
-            id: '60019 ',
-            PLANNO: '10002',
-          },
-        ],
-        status: {
-          errorCode: '00000',
-          lasttxnseqno: '7',
-          errorMsg: '0',
-        },
-      },
-      cardTypePath: '/content/dam/hdfc/cc-forms/card_facia/1-Infinia-Visa.jpg',
-      productDetails: {
-        currentCardDetails: {
-          features: {
-            'Catalogue \u2013 Redemption (up to)': '50 Paise',
-            'Flight & Hotel \u2013 Redemption': '100 Paise',
-            'International Lounge Access/Year': 'UNLIMITED',
-            'Cashback \u2013 Redemption': '30 Paise',
-            'Domestic Lounge Access/year': 'UNLIMITED',
-            'Reward Points / Rs150 spent': '5 RP',
-          },
-          PRODUCT: 'INFINIA',
-          cardType: 'Visa',
-          verticalcard: '',
-          cardTypePath: '/content/dam/hdfc/cc-forms/card_facia/1-Infinia-Visa.jpg',
-        },
-        showLinkFlag: 'false',
-      },
-      email: {
-        residenceEmail: 'TESTING1234567898765432@MAIL.COM',
-        officeEmail: '',
-      },
-      status: {
-        errorCode: '0',
-        errorMsg: 'Success',
-      },
-    },
-  };
 
   var SEMI_CONSTANT = /*#__PURE__*/Object.freeze({
     __proto__: null,
     CHANNELS: CHANNELS$1,
-    CURRENT_FORM_CONTEXT: CURRENT_FORM_CONTEXT$1,
+    CURRENT_FORM_CONTEXT: CURRENT_FORM_CONTEXT,
     DATA_LIMITS: DATA_LIMITS$1,
     DOM_ELEMENT: DOM_ELEMENT,
     ERROR_MSG: ERROR_MSG$1,
@@ -1487,62 +439,7 @@
     MISC: MISC$1,
     OTP_TIMER: OTP_TIMER,
     PRO_CODE: PRO_CODE$1,
-    RESPONSE_PAYLOAD: RESPONSE_PAYLOAD$1,
     SEMI_ENDPOINTS: SEMI_ENDPOINTS
-  });
-
-  // declare COMMON_CONSTANTS for all forms only.
-  // impoted as CONSTANT key name in all files
-  const BASEURL$1 = 'https://applyonlinedev.hdfcbank.com';
-  const CHANNEL$3 = 'ADOBE_WEBFORMS';
-  const ENDPOINTS$2 = {
-    aadharCallback: '/content/hdfc_etb_wo_pacc/api/aadharCallback.json',
-    aadharInit: '/content/hdfc_haf/api/aadhaarInit.json',
-    fetchAuthCode: '/content/hdfc_commonforms/api/fetchauthcode.json',
-    emailId: '/content/hdfc_commonforms/api/emailid.json',
-    executeInterface: '/content/hdfc_haf/api/executeinterface.json',
-    finalDap: '/content/hdfc_etb_wo_pacc/api/finaldap.json',
-    ipa: '/content/hdfc_haf/api/ipa.json',
-    journeyDropOff: '/content/hdfc_commonforms/api/journeydropoff.json',
-    journeyDropOffParam: '/content/hdfc_commonforms/api/journeydropoffparam.json',
-    journeyDropOffUpdate: '/content/hdfc_commonforms/api/journeydropoffupdate.json',
-    otpGen: '/content/hdfc_haf/api/otpgenerationccV4.json',
-    otpValFetchAssetDemog: '/content/hdfc_haf/api/otpvaldemogV4.json',
-    panValNameMatch: '/content/hdfc_forms_common_v2/api/panValNameMatch.json',
-    docUpload: '/content/hdfc_etb_wo_pacc/api/documentUpload.json',
-  };
-
-  const DEAD_PAN_STATUS = ['D', 'ED', 'X', 'F'];
-
-  const CURRENT_FORM_CONTEXT = {};
-
-  const FORM_RUNTIME = {};
-
-  const ID_COM = {
-    productCode: 'CORPCC',
-    scopeMap: {
-      only_casa: {
-        no: 'AACC',
-        yes: 'ADOBE_PACC',
-      },
-      casa_asset: {
-        no: 'AACC',
-        yes: 'ADOBE_PACC',
-      },
-      casa_cc: 'PADC',
-      only_cc: 'OYCC',
-    },
-  };
-
-  var CONSTANT = /*#__PURE__*/Object.freeze({
-    __proto__: null,
-    BASEURL: BASEURL$1,
-    CHANNEL: CHANNEL$3,
-    CURRENT_FORM_CONTEXT: CURRENT_FORM_CONTEXT,
-    DEAD_PAN_STATUS: DEAD_PAN_STATUS,
-    ENDPOINTS: ENDPOINTS$2,
-    FORM_RUNTIME: FORM_RUNTIME,
-    ID_COM: ID_COM
   });
 
   // DOM - UTILS - having cer tain dom overing function which has been used in formutils.js by the imported
@@ -1621,9 +518,10 @@
    * Changes the language of the Aadhar content to the specified language.
    * @param {Object} content - The content configuration for Aadhar.
    * @param {string} defaultLang - The language to show us default.
+   * @param {Object} currentFormContext - current form context to store the language selected for aadhar
    */
   // select dropdow-aadhar
-  const aadharLangChange$1 = (adharContentDom, defaultLang) => {
+  const aadharLangChange$1 = async (adharContentDom, defaultLang, currentFormContext) => {
     const selectOp = adharContentDom.querySelector(`[name= ${'selectLanguage'}]`);
     const findFieldSet = adharContentDom?.querySelectorAll('fieldset');
     const selectedClass = 'selected-language';
@@ -1640,11 +538,13 @@
       });
     };
     applySelected(findFieldSet, defaultOptionClass, selectedClass);
+    currentFormContext.languageSelected = defaultLang;
     selectOp.value = defaultLang;
     selectOp?.addEventListener('change', (e) => {
       e.preventDefault();
       const { value: valueSelected } = e.target;
       selectOp.value = valueSelected;
+      currentFormContext.languageSelected = valueSelected;
       const optionClass = `field-aadharconsent-${valueSelected?.toLowerCase()}`;
       applySelected(findFieldSet, optionClass, selectedClass);
     });
@@ -1876,10 +776,28 @@
     }
   };
 
+  /**
+   * Attaches a click handler to an element that redirects to a specified URL.
+   *
+   * @param {string} selector - The CSS selector for the element to make clickable.
+   * @param {string} url - The URL to navigate to when the element is clicked.
+   * @param {string} [target='_blank'] - The target window or tab for the URL (e.g., '_blank', '_self').
+   */
+  const attachRedirectOnClick$1 = (selector, url, target = '_blank') => {
+    const element = document.querySelector(selector);
+    if (element) {
+      element.addEventListener('click', (event) => {
+        event.preventDefault();
+        window?.open(url, target);
+      });
+    }
+  };
+
   var DOM_API = /*#__PURE__*/Object.freeze({
     __proto__: null,
     aadharLangChange: aadharLangChange$1,
     addDisableClass: addDisableClass$1,
+    attachRedirectOnClick: attachRedirectOnClick$1,
     createLabelInElement: createLabelInElement$1,
     decorateStepper: decorateStepper$1,
     displayLoader: displayLoader,
@@ -1908,6 +826,7 @@
     addDisableClass,
     createLabelInElement,
     decorateStepper,
+    attachRedirectOnClick,
   } = DOM_API; // DOM_MANIPULATE_CODE_FUNCTION
 
   const { BASEURL } = CONSTANT;
@@ -1966,7 +885,7 @@
     setValue: (val, changeDataAttr) => {
       globalObj.functions.setProperty(panelName, { value: val });
       if (changeDataAttr?.attrChange && val) {
-        const element = document.getElementsByName(panelName._data.$_name)?.[0];
+        const element = document.getElementsByName(panelName._data.$_name)?.[0] || document.getElementsByName(panelName.$name)?.[0];
         if (element) {
           const closestAncestor = element.closest(`.${ANCESTOR_CLASS_NAME}`);
           if (closestAncestor) {
@@ -1991,7 +910,7 @@
      */
     resetField: () => {
       globalObj.functions.setProperty(panelName, { value: '' });
-      const element = document.getElementsByName(panelName._data.$_name)?.[0];
+      const element = document.getElementsByName(panelName._data.$_name)?.[0] || document.getElementsByName(panelName.$name)?.[0];
       if (element) {
         const closestAncestor = element.closest(`.${ANCESTOR_CLASS_NAME}`);
         if (closestAncestor) {
@@ -2031,7 +950,6 @@
       }
       return formData;
     } catch (ex) {
-      console.error(ex);
       return null;
     }
   };
@@ -2041,6 +959,18 @@
    * @returns {string} The generated UUID string.
    */
   const generateUUID = () => ([1e7] + -1e3 + -4e3 + -8e3 + -1e11).replace(/[018]/g, (c) => (c ^ (crypto.getRandomValues(new Uint8Array(1))[0] & (15 >> (c / 4)))).toString(16));
+  /**
+   * Creates a deep copy of the given blueprint object.
+   *
+   * This function returns a new object that is a deep copy of the blueprint object,
+   * ensuring that nested objects are also copied rather than referenced.
+   *
+   * @param {Object} blueprint - The blueprint object to copy.
+   * @returns {Object} A deep copy of the blueprint object.
+   */
+  function createDeepCopyFromBlueprint(blueprint) {
+    return JSON.parse(JSON.stringify(blueprint));
+  }
 
   // import semitcRedirectURI from '../../blocks/form/constant.js';
   /**
@@ -2183,15 +1113,16 @@
   const currencyUtil = (number, minimumFractionDigits) => {
     if (typeof (number) !== 'number') return number;
     const options = {
-      minimumFractionDigits: minimumFractionDigits,
+      minimumFractionDigits: minimumFractionDigits ,
     };
-    const interestNumber = (number / 100).toFixed(minimumFractionDigits);
+    const interestNumber = (number / 100).toFixed(minimumFractionDigits );
     const newNumber = new Intl.NumberFormat('us-EN', options).format(interestNumber);
     return newNumber;
   };
 
   /* */
-  const numberToText = (num) => {
+  const numberToText = (number) => {
+    const num = Math.trunc(Number(number));
     const a = ['', 'One ', 'Two ', 'Three ', 'Four ', 'Five ', 'Six ', 'Seven ', 'Eight ', 'Nine ', 'Ten ', 'Eleven ', 'Twelve ', 'Thirteen ', 'Fourteen ', 'Fifteen ', 'Sixteen ', 'Seventeen ', 'Eighteen ', 'Nineteen '];
     const b = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
     if ((num.toString()).length > 9) return 'overflow';
@@ -2216,12 +1147,11 @@
     addMobileValidation();
     addCardFieldValidation();
     addOtpFieldValidation();
-    linkToPopupToggle('.field-disclaimer-text a', '.field-landingconfirmationpopup', '.field-doyouwishtocontinue', '.field-cross-btn button', '.field-err-popup-buttonconfirm button');
+    linkToPopupToggle('.field-aem-disclaimer-text a', '.field-landingconfirmationpopup', '.field-doyouwishtocontinue', '.field-cross-btn button', '.field-err-popup-buttonconfirm button');
     linkToPopupToggle('.field-aem-txnssummarytext a', '.field-aem-txnssummarypopupwrapper', '.field-aem-txnssummarypopup', '.field-aem-txnssummaryok');
   };
 
   const getBillingCycleDate = (day) => {
-
     // Get the current day of the month in the Indian timezone
     const options = { timeZone: 'Asia/Kolkata', day: 'numeric' };
     const dayOfMonth = Number(new Intl.DateTimeFormat('en-US', options).format(new Date()));
@@ -2229,9 +1159,9 @@
     const date = new Date();
     // Set the provided day
     date.setDate(day);
-    if(day <= dayOfMonth) {
-        // Move to the next month
-        date.setMonth(date.getMonth() + 1);
+    if (day <= dayOfMonth) {
+      // Move to the next month
+      date.setMonth(date.getMonth() + 1);
     }
     // Extract the day, month, and year
     const dayPart = date.getDate();
@@ -2258,6 +1188,30 @@
     lc1: null, // LC2
     dsacode: null, // DSACODE
     branchcode: null, // BRANCHCODE
+  };
+
+  /**
+   * Extracts specific tenure-related fields from the global form object.
+   * @param {object} globals - global form object
+   * @returns {object} - An object containing the extracted tenure-related fields:
+   *  - `continueToTQbtn` {Object}: The continue button element.
+   *  - `tNCCheckBox` {Object}: The terms and conditions checkbox element.
+   *  - `tnCMadCheckBox` {Object}: The T&C MAD checkbox element.
+   */
+  const getSelectTenureFields = async (globals) => {
+    const selectTenure = globals.form.aem_semiWizard.aem_selectTenure;
+    const {
+      aem_continueToTQ: continueToTQbtn,
+      tnCPanelWrapper: {
+        aem_tandC: tNCCheckBox,
+      },
+      aem_tandCMAD: tnCMadCheckBox,
+    } = selectTenure;
+    return {
+      continueToTQbtn,
+      tNCCheckBox,
+      tnCMadCheckBox,
+    };
   };
 
   /**
@@ -2308,12 +1262,14 @@
    */
   const preFillFromUtm = async (globals) => {
     const {
-      branchCode, dsaCode, lc1Code, lc2Code, smCode, lgTseCode,
+      branchCode, dsaCode, lc1Code, bdrLc1Code, lc2Code, smCode, lgTseCode,
     } = await extractEmpAsstPannels(globals);
+    // dsa, branch based on that lc1 code fields should be changed.
+    const decideLC1Code = (UTM_PARAMS?.dsacode || UTM_PARAMS?.branchcode) ? bdrLc1Code : lc1Code;
     // Mapping UTM params to field names
     const fieldMapping = {
       dsacode: dsaCode,
-      lc1: lc1Code,
+      lc1: decideLC1Code,
       lc2: lc2Code,
       branchcode: branchCode,
       smcode: smCode,
@@ -2335,6 +1291,11 @@
     try {
       const response = await getJsonResponse(semiEndpoints$1.masterChanel, null, 'GET');
       const { channel, ...asstPannels } = await extractEmpAsstPannels(globals);
+      const {
+        continueToTQbtn,
+        tNCCheckBox,
+        tnCMadCheckBox,
+      } = await getSelectTenureFields(globals);
       const asstPannelArray = Object.entries(asstPannels).map(([, proxyFiels]) => proxyFiels);
       const channelDropDown = channel;
       const DEF_OPTION = [{ label: 'Website Download', value: 'Website Download' }];
@@ -2345,11 +1306,14 @@
       if (UTM_PARAMS.channel) {
         const findParamChanelValue = channelOptions?.find((el) => clearString(el.value)?.toLocaleLowerCase() === clearString(UTM_PARAMS.channel)?.toLocaleLowerCase());
         globals.functions.setProperty(channelDropDown, {
-          enum: channelOptions, enumNames: chanelEnumNames, value: findParamChanelValue.value, enabled: false,
+          enum: chanelEnumNames, enumNames: chanelEnumNames, value: findParamChanelValue.value, enabled: false,
         });
         await preFillFromUtm(globals);
       } else {
-        globals.functions.setProperty(channelDropDown, { enum: channelOptions, enumNames: chanelEnumNames, value: DEF_OPTION[0].value });
+        globals.functions.setProperty(channelDropDown, { enum: chanelEnumNames, enumNames: chanelEnumNames, value: DEF_OPTION[0].value });
+        if ((channelDropDown.$value === DEF_OPTION[0].value) && (tNCCheckBox.$value) && (tnCMadCheckBox.$value)) {
+          globals.functions.setProperty(continueToTQbtn, { enabled: true });
+        }
         asstPannelArray?.forEach((pannel) => globals.functions.setProperty(pannel, { visible: false }));
       }
     } catch (error) {
@@ -2397,9 +1361,20 @@
      */
   const branchHandler = async (globals) => {
     const { branchName, branchCity, branchCode } = await extractEmpAsstPannels(globals);
+    const {
+      continueToTQbtn,
+      // eslint-disable-next-line no-unused-vars
+      tNCCheckBox,
+      // eslint-disable-next-line no-unused-vars
+      tnCMadCheckBox,
+    } = await getSelectTenureFields(globals);
     const branchNameUtil = formUtil(globals, branchName);
     const branchCityUtil = formUtil(globals, branchCity);
-    globals.functions.markFieldAsInvalid(branchCode.$qualifiedName, '', { useQualifiedName: true });
+    const INVALID_MSG = 'Please enter valid Branch Code';
+    if (!branchCode.$value) {
+      globals.functions.markFieldAsInvalid(branchCode.$qualifiedName, INVALID_MSG, { useQualifiedName: true });
+      return;
+    }
     try {
       const branchCodeUrl = `${semiEndpoints$1.branchMaster}-${branchCode.$value}.json`;
       const response = await getJsonResponse(branchCodeUrl, null, 'GET');
@@ -2414,7 +1389,10 @@
         branchCityUtil.setValue(cityName, changeDataAttrObj);
       }
     } catch (error) {
-      // globals.functions.markFieldAsInvalid(branchCode.$qualifiedName, INVALID_MSG, { useQualifiedName: true });
+      if (error.message === 'No Records Found') {
+        globals.functions.markFieldAsInvalid(branchCode.$qualifiedName, INVALID_MSG, { useQualifiedName: true });
+      }
+      globals.functions.setProperty(continueToTQbtn, { enabled: false });
       branchNameUtil.resetField();
       branchCityUtil.resetField();
     }
@@ -2427,8 +1405,19 @@
   const dsaHandler = async (globals) => {
     //  'XKSD' //BSDG003
     const { dsaCode, dsaName } = await extractEmpAsstPannels(globals);
+    const {
+      continueToTQbtn,
+      // eslint-disable-next-line no-unused-vars
+      tNCCheckBox,
+      // eslint-disable-next-line no-unused-vars
+      tnCMadCheckBox,
+    } = await getSelectTenureFields(globals);
+    const INVALID_MSG = 'Please enter valid DSA Code';
     const dsaNameUtil = formUtil(globals, dsaName);
-    // globals.functions.markFieldAsInvalid(dsaCode.$qualifiedName, '', { useQualifiedName: true });
+    if (!dsaCode.$value) {
+      globals.functions.markFieldAsInvalid(dsaCode.$qualifiedName, INVALID_MSG, { useQualifiedName: true });
+      return;
+    }
     try {
       const dsaCodeUrl = `${semiEndpoints$1.dsaCode}-${dsaCode.$value?.toLowerCase()}.json`;
       const response = await getJsonResponse(dsaCodeUrl, null, 'GET');
@@ -2436,14 +1425,15 @@
       if (data?.errorCode === '500') {
         throw new Error(data?.errorMessage);
       } else {
-        // globals.functions.setProperty(dsaCode, { valid: true });
-        // globals.functions.markFieldAsInvalid(dsaCode.$qualifiedName, '', { useQualifiedName: true });
         const dsaNameVal = data?.DSANAME;
         const changeDataAttrObj = { attrChange: true, value: false, disable: true };
         dsaNameUtil.setValue(dsaNameVal, changeDataAttrObj);
       }
     } catch (error) {
-      // globals.functions.markFieldAsInvalid(dsaCode.$qualifiedName, INVALID_MSG, { useQualifiedName: true });
+      if (error.message === 'No Records Found') {
+        globals.functions.markFieldAsInvalid(dsaCode.$qualifiedName, INVALID_MSG, { useQualifiedName: true });
+      }
+      globals.functions.setProperty(continueToTQbtn, { enabled: false });
       dsaNameUtil.resetField();
       // eslint-disable-next-line no-console
       console.log(error);
@@ -2468,7 +1458,7 @@
   /* eslint no-bitwise: ["error", { "allow": ["^", ">>", "&"] }] */
 
 
-  const { ENDPOINTS: ENDPOINTS$1, CHANNEL: CHANNEL$2, CURRENT_FORM_CONTEXT: currentFormContext$3 } = CONSTANT;
+  const { ENDPOINTS: ENDPOINTS$1, CHANNEL: CHANNEL$1, CURRENT_FORM_CONTEXT: currentFormContext$3 } = CONSTANT;
 
   /**
     * @name invokeJourneyDropOffByParam
@@ -2494,7 +1484,7 @@
   };
 
   /* temproraily added this journey utils for SEMI , journey utils common file has to be changed to generic */
-  const CHANNEL$1 = 'ADOBE_WEBFORMS';
+  const CHANNEL = 'ADOBE_WEBFORMS';
 
   const {
     CURRENT_FORM_CONTEXT: currentFormContext$2,
@@ -2514,9 +1504,9 @@
           mobileNumber,
         },
         formData: {
-          channel: CHANNEL$1,
-          journeyName: currentFormContext$2.journeyName,
-          journeyID: currentFormContext$2.journeyID,
+          channel: CHANNEL,
+          journeyName: globals.form.runtime.journeyName.$value,
+          journeyID: globals.form.runtime.journeyId.$value,
           journeyStateInfo: [
             {
               state,
@@ -2551,9 +1541,9 @@
           leadProfileId: leadProfileId?.toString(),
         },
         formData: {
-          channel: CHANNEL$1,
-          journeyName: currentFormContext$2.journeyName,
-          journeyID: currentFormContext$2.journeyID,
+          channel: CHANNEL,
+          journeyName: globals.form.runtime.journeyName.$value,
+          journeyID: journeyId,
           journeyStateInfo: [
             {
               state,
@@ -2569,13 +1559,12 @@
     return fetchJsonResponse(url, journeyJSONObj, method);
   };
 
+  /* eslint-disable no-unused-vars */
   /* eslint-disable no-console */
 
   const {
     ENDPOINTS,
     CURRENT_FORM_CONTEXT: currentFormContext$1,
-    FORM_RUNTIME: formRuntime,
-    CHANNEL,
   } = CONSTANT;
 
   /**
@@ -2595,6 +1584,496 @@
     }
   }
 
+  const ANALYTICS_JOURNEY_STATE = {
+    'page load': 'CUSTOMER_IDENTITY_ACQUIRED',
+    'otp click': 'CUSTOMER_IDENTITY_RESOLVED',
+    'submit otp': 'CUSTOMER_LEAD_QUALIFIED',
+    'resend otp': 'CUSTOMER_RESEND_OTP',
+    'transaction view': 'CUSTOMER_TXN_SELECTED',
+    'tenure page': 'CUSTOMER_PREEXECUTION_SUCCESS',
+    'confirm tenure': 'CUSTOMER_ONBOARDING_COMPLETE',
+    'resendOtp confirmTenure': 'RESEND_OTP_CUSTOMER_ONBOARDING',
+    'thank you': 'CUSTOMER_ONBOARDING_COMPLETE',
+    'submit review': 'CUSTOMER_FEEDBACK_SUBMITTED',
+  };
+
+  const ANALYTICS_PAGE_NAME = {
+    'page load': 'Step 1 - Identify Yourself',
+    'otp click': 'Step 1 - Identify Yourself',
+    'submit otp': 'Step 2 - Verify with OTP',
+    'resend otp': 'Step 2 - Verify with OTP',
+    'transaction view': 'Step 3 - View Spends - Select Transactions',
+    'tenure page': 'Step 3 - View Spends - Select Tenure',
+    'confirm tenure': 'Step 4 - Confirm with OTP',
+    'resendOtp confirmTenure': 'Step 4 - Confirm with OTP',
+    'thank you': 'Step 5 - Confirmation',
+    'submit review': 'Step 5 - Confirmation',
+    'Error Page': 'Error Page',
+  };
+
+  const ANALYTICS_LINK_BTN = {
+    'otp click': {
+      linkType: 'button',
+      linkName: 'Get OTP',
+      StepName: 'Step 1 - Identify Yourself',
+      linkPosition: 'Form',
+      pageName: ANALYTICS_PAGE_NAME['otp click'],
+    },
+    'submit otp': { // otp1 typing
+      linkType: 'button',
+      linkName: 'Submit OTP',
+      StepName: 'Step 2 - Verify with OTP',
+      linkPosition: 'Form',
+      pageName: ANALYTICS_PAGE_NAME['submit otp'],
+    },
+    'resend otp': { // resendotp1 typing
+      linkType: 'button',
+      linkName: 'Resend OTP',
+      StepName: 'Step 2 - Verify with OTP',
+      linkPosition: 'Form',
+      pageName: ANALYTICS_PAGE_NAME['resend otp'],
+    },
+    'transaction view': { // continue on transaction scrren
+      linkType: 'button',
+      linkName: 'View EMI Amount',
+      StepName: 'Step 3 - View Spends - Select Transactions',
+      linkPosition: 'Form',
+      pageName: ANALYTICS_PAGE_NAME['transaction view'],
+    },
+    'tenure page': { // preExecution ok
+      linkType: 'button',
+      linkName: 'Confirm',
+      StepName: 'Step 3 - View Spends - Select Tenure',
+      linkPosition: 'Form',
+      pageName: ANALYTICS_PAGE_NAME['tenure page'],
+    },
+    'confirm tenure': { // otp2
+      linkType: 'button',
+      linkName: 'Authenticate',
+      StepName: 'Step 4 - Confirm with OTP',
+      linkPosition: 'Form',
+      pageName: ANALYTICS_PAGE_NAME['confirm tenure'],
+    },
+    'resendOtp confirmTenure': { // resendotp2 typing
+      linkType: 'button',
+      linkName: 'Resend OTP',
+      StepName: 'Step 4 - Confirm with OTP',
+      linkPosition: 'Form',
+      pageName: ANALYTICS_PAGE_NAME['confirm tenure'],
+    },
+    'submit review': {
+      linkType: 'button',
+      linkName: 'Submit',
+      StepName: 'Step 5 - Confirmation',
+      linkPosition: 'Form',
+      pageName: ANALYTICS_PAGE_NAME['thank you'],
+    },
+  };
+
+  const ANALYTICS_OBJECT_SEMI = {
+    page: {
+      pageInfo: {
+        pageName: '',
+        errorCode: '',
+        errorMessage: '',
+      },
+    },
+    user: {
+      pseudoID: '',
+      journeyID: '',
+      journeyName: '',
+      journeyState: '',
+      casa: '',
+      gender: '',
+      email: '',
+    },
+    form: {
+      name: '',
+    },
+    link: {
+      linkName: '',
+      linkType: '',
+      linkPosition: '',
+    },
+    event: {
+      phone: '',
+      validationMethod: '',
+      status: '',
+      rating: '',
+    },
+  };
+
+  const ANALYTICS_PAGE_LOAD_OBJECT_SEMI = {
+    page: {
+      pageInfo: {
+        pageName: '',
+        errorCode: '',
+        errorMessage: '',
+      },
+    },
+    user: {
+      pseudoID: '',
+      journeyID: '',
+      journeyName: '',
+      journeyState: '',
+      casa: '',
+    },
+    form: {
+      name: '',
+    },
+  };
+
+  /* eslint-disable no-undef */
+
+  const currentState = {
+    pageName: '',
+  };
+
+  /**
+   * Hashes a phone number using SHA-256 algorithm.
+   *
+   * @function hashInSha256
+   * @param {string}  - The phone number to be hashed.
+   * @returns {Promise<string>} A promise that resolves to the hashed phone number in hexadecimal format.
+   */
+  const hashInSha256 = async (inputString) => {
+    const encoder = new TextEncoder();
+    const rawdata = encoder.encode(inputString);
+    const hash = await crypto.subtle.digest('SHA-256', rawdata);
+    return Array.from(new Uint8Array(hash))
+      .map((b) => b.toString(16).padStart(2, '0'))
+      .join('');
+  };
+
+  const hashPhNo = async (phoneNumber) => {
+    const hashed = await hashInSha256(String(phoneNumber));
+    return hashed;
+  };
+
+  /**
+     * set analytics generic props for page load
+     * @name setAnalyticPageLoadProps
+     * @param {string} linkName - linkName
+     * @param {string} linkType - linkName
+     * @param {object} formContext - currentFormContext.
+     * @param {object} digitalData
+     */
+
+  const setAnalyticPageLoadProps = (journeyState, formData, digitalData) => {
+    digitalData.user.pseudoID = '';// Need to check
+    digitalData.user.journeyName = formData?.journeyName || formData?.smartemi?.journeyName;
+    digitalData.user.journeyID = formData?.journeyId || formData?.smartemi?.journeyId;
+    digitalData.user.journeyState = journeyState;
+    digitalData.user.casa = '';
+    digitalData.user.aan = '';
+    digitalData.form.name = 'SmartEMI';
+    digitalData.form.emiCategory = '';
+  };
+
+  /**
+     * set analytics generic props for click event
+     * @name setAnalyticClickGenericProps
+     * @param {string} linkName - linkName
+     * @param {string} linkType - linkName
+     * @param {object} formContext - currentFormContext.
+     * @param {object} digitalData
+     */
+
+  const setAnalyticClickGenericProps = (linkName, linkType, formData, journeyState, digitalData) => {
+    digitalData.link = {};
+    digitalData.link.linkName = ANALYTICS_LINK_BTN[linkName].linkName;
+    digitalData.link.linkType = ANALYTICS_LINK_BTN[linkName].linkType;
+    digitalData.link.linkPosition = ANALYTICS_LINK_BTN[linkName].linkPosition;
+    digitalData.user.pseudoID = '';
+    digitalData.user.journeyName = CURRENT_FORM_CONTEXT?.journeyName || formData?.smartemi?.journeyName;
+    digitalData.user.journeyID = CURRENT_FORM_CONTEXT?.journeyID || formData?.smartemi?.journeyId;
+    digitalData.user.journeyState = journeyState;
+    if (linkName === 'otp click') {
+      digitalData.form.name = JOURNEY_NAME;
+      digitalData.user.casa = '';
+    }
+  };
+
+  /**
+     * Sends analytics event on page load.
+     * @name sendPageloadEvent
+     * @param {string} journeyState.
+     * @param {object} formData.
+     * @param {string} pageName.
+     */
+  const sendPageloadEvent = (journeyState, formData, pageName) => {
+    const digitalData = createDeepCopyFromBlueprint(ANALYTICS_PAGE_LOAD_OBJECT_SEMI);
+    digitalData.page.pageInfo.pageName = pageName;
+    setAnalyticPageLoadProps(journeyState, formData, digitalData);
+    if (currentState.pageName === ANALYTICS_PAGE_NAME['transaction view']) {
+      digitalData.formDetails = {};
+      digitalData.formDetails.eligibleTransactions = ''; // eligible transaction on load of transaction page
+      currentState.pageName = null;
+    }
+    if (currentState.pageName === ANALYTICS_PAGE_NAME['tenure page']) {
+      /* default selected on load of this page */
+      const selectedData = formData?.aem_tenureSelectionRepeatablePanel?.find((el) => el.aem_tenureSelection);
+      digitalData.formDetails = {};
+      digitalData.formDetails.installment = selectedData?.aem_tenureSelectionEmi ?? '';
+      digitalData.formDetails.tenure = selectedData?.aem_tenure_display ?? '';
+      digitalData.formDetails.roi = selectedData?.aem_roi_monthly ?? '';
+      currentState.pageName = null;
+    }
+    if (currentState.pageName === ANALYTICS_PAGE_NAME['thank you']) {
+      digitalData.formDetails = {};
+      digitalData.formDetails.reference = formData?.smartemi?.originAcct ?? '';
+      digitalData.formDetails.amtCreditedDealer = formData?.smartemi?.SmartEMIAmt ?? '';
+      digitalData.user.casa = 'YES';
+      digitalData.user.aan = formData?.smartemi?.originAcct;
+      currentState.pageName = null;
+    }
+    if (window) {
+      window.digitalData = digitalData || {};
+    }
+    _satellite.track('pageload');
+  };
+
+  /**
+     *Creates digital data for otp click event.
+     * @param {string} validationType
+     * @param {string} eventType
+     * @param {object} formContext
+     * @param {object} digitalData
+     */
+  const sendSubmitClickEvent = async (eventType, linkType, formData, journeyState, digitalData) => {
+    setAnalyticClickGenericProps(eventType, linkType, formData, journeyState, digitalData);
+    digitalData.page.pageInfo.pageName = ANALYTICS_PAGE_NAME[eventType];
+    switch (eventType) {
+      case 'otp click': {
+        digitalData.event = {
+          phone: await hashPhNo(String(formData.smartemi.aem_mobileNum)), // sha-256 encrypted ?.
+          validationMethod: 'credit card',
+          status: '1',
+        };
+        if (window) {
+          window.digitalData = digitalData || {};
+        }
+        _satellite.track('submit');
+        setTimeout(() => {
+          sendPageloadEvent(ANALYTICS_JOURNEY_STATE['otp click'], formData, ANALYTICS_PAGE_NAME['submit otp']);
+        }, 1000);
+        break;
+      }
+
+      case 'submit otp': {
+        digitalData.event = {
+          phone: await hashPhNo(String(formData.smartemi.aem_mobileNum)), // sha-256 encrypted ?.
+          validationMethod: 'credit card',
+          status: '1',
+        };
+        if (window) {
+          window.digitalData = digitalData || {};
+        }
+        _satellite.track('submit');
+        setTimeout(() => {
+          currentState.pageName = ANALYTICS_PAGE_NAME['transaction view'];
+          sendPageloadEvent(ANALYTICS_JOURNEY_STATE['submit otp'], formData, ANALYTICS_PAGE_NAME['transaction view']);
+        }, 1000);
+        break;
+      }
+
+      case 'resend otp': {
+        digitalData.event = {
+          phone: await hashPhNo(String(formData.smartemi.aem_mobileNum)), // sha-256 encrypted ?.
+          validationMethod: 'credit card',
+          status: '1',
+        };
+        if (window) {
+          window.digitalData = digitalData || {};
+        }
+        _satellite.track('submit');
+        break;
+      }
+
+      case 'transaction view': {
+        digitalData.event.status = {
+          phone: await hashPhNo(String(formData.smartemi.aem_mobileNum)), // sha-256 encrypted ?.
+          validationMethod: 'credit card',
+          status: '1',
+        };
+        digitalData.formDetails = {};
+        digitalData.formDetails.amt = formData?.smartemi?.SmartEMIAmt || CURRENT_FORM_CONTEXT.SMART_EMI_AMOUNT; // total amount
+        digitalData.formDetails.eligibleTransactions = ''; // eligible transaction ?. no of eligible transaction available
+        digitalData.formDetails.selectedTransactions = CURRENT_FORM_CONTEXT?.TXN_SELECTED_COUNTS?.total; // no of selected
+        if (window) {
+          window.digitalData = digitalData || {};
+        }
+        _satellite.track('submit');
+        setTimeout(() => {
+          currentState.pageName = ANALYTICS_PAGE_NAME['tenure page'];
+          sendPageloadEvent(ANALYTICS_JOURNEY_STATE['transaction view'], formData, ANALYTICS_PAGE_NAME['tenure page']);
+        }, 1000);
+        break;
+      }
+
+      case 'tenure page': {
+        digitalData.event = {
+          phone: await hashPhNo(String(formData.smartemi.aem_mobileNum)), // sha-256 encrypted ?.
+          validationMethod: 'credit card',
+          status: '1',
+        };
+        const selectedData = formData?.aem_tenureSelectionRepeatablePanel?.find((el) => el.aem_tenureSelection);
+        digitalData.formDetails = {};
+        digitalData.formDetails.installment = selectedData?.aem_tenureSelectionEmi ?? '';
+        digitalData.formDetails.tenure = selectedData?.aem_tenure_display ?? '';
+        digitalData.formDetails.roi = selectedData?.aem_roi_monthly ?? '';
+        digitalData.formDetails.amt = formData?.smartemi?.SmartEMIAmt || CURRENT_FORM_CONTEXT.SMART_EMI_AMOUNT; // total amount
+        digitalData.assisted = {};
+        digitalData.assisted.flag = formData?.aem_bankAssistedToggle;
+        digitalData.assisted.lg = formData?.aem_lgCode ?? '';
+        digitalData.assisted.lc = formData?.aem_lcCode ?? '';
+        const EMI_CATEGORY = (formData?.smartemi?.TransactionType === 'Both') ? 'Billed / Unbilled ' : formData?.smartemi?.TransactionType;
+        const ccBilledData = CURRENT_FORM_CONTEXT?.EligibilityResponse?.ccBilledTxnResponse?.responseString ? CURRENT_FORM_CONTEXT?.EligibilityResponse?.ccBilledTxnResponse?.responseString : [];
+        const ccUnBilledData = CURRENT_FORM_CONTEXT?.EligibilityResponse?.ccUnBilledTxnResponse?.responseString ? CURRENT_FORM_CONTEXT?.EligibilityResponse?.ccUnBilledTxnResponse?.responseString : [];
+        const errorMessages = {
+          noBilled: 'No transactions available in billed category',
+          noUnBilled: 'No transactions available in unbilled category',
+          noTransactions: 'No transactions to convert',
+        };
+        if ((ccUnBilledData?.length === 0) && (ccBilledData?.length === 0)) {
+          digitalData.page.pageInfo.errorMessage = errorMessages.noTransactions;
+        } else if ((ccUnBilledData?.length === 0)) {
+          digitalData.page.pageInfo.errorMessage = errorMessages.noUnBilled;
+        } else if ((ccBilledData?.length === 0)) {
+          digitalData.page.pageInfo.errorMessage = errorMessages.noBilled;
+        }
+        digitalData.form.emiCategory = EMI_CATEGORY;
+        if (window) {
+          window.digitalData = digitalData || {};
+        }
+        const trackingEvent = ((ccUnBilledData?.length === 0) && (ccBilledData?.length === 0)) ? 'unbilled_clicked' : 'submit';
+        _satellite.track(trackingEvent);
+        setTimeout(() => {
+          sendPageloadEvent(ANALYTICS_JOURNEY_STATE['tenure page'], formData, ANALYTICS_PAGE_NAME['confirm tenure']);
+        }, 1000);
+        break;
+      }
+
+      case 'confirm tenure': {
+        digitalData.event = {
+          phone: await hashPhNo(String(formData.smartemi.aem_mobileNum)), // sha-256 encrypted ?.
+          validationMethod: 'credit card',
+          status: '1',
+        };
+        if (window) {
+          window.digitalData = digitalData || {};
+        }
+        _satellite.track('submit');
+        setTimeout(() => {
+          currentState.pageName = ANALYTICS_PAGE_NAME['thank you'];
+          sendPageloadEvent(ANALYTICS_JOURNEY_STATE['thank you'], formData, ANALYTICS_PAGE_NAME['thank you']);
+        }, 7000);
+        break;
+      }
+
+      case 'resendOtp confirmTenure': {
+        digitalData.event = {
+          phone: await hashPhNo(String(formData.smartemi.aem_mobileNum)), // sha-256 encrypted ?.
+          validationMethod: 'credit card',
+          status: '1',
+        };
+        if (window) {
+          window.digitalData = digitalData || {};
+        }
+        _satellite.track('submit');
+        break;
+      }
+      case 'submit review': {
+        digitalData.event = {};
+        digitalData.event.rating = formData?.ratingvalue || formData.rating;
+        if (window) {
+          window.digitalData = digitalData || {};
+        }
+        _satellite.track('submit');
+        break;
+      }
+          // do nothing
+    }
+  };
+
+  const populateResponse = (payload, eventType, digitalData) => {
+    switch (eventType) {
+      case 'otp click':
+      case 'transaction view':
+      case 'tenure page':
+        if (payload === 'Record successfully updated!') {
+          digitalData.page.pageInfo.errorCode = '0';
+          digitalData.page.pageInfo.errorMessage = 'success';
+        } else {
+          digitalData.page.pageInfo.errorCode = payload?.errorCode ?? '';
+          digitalData.page.pageInfo.errorMessage = payload?.errorMsg ?? '';
+        }
+        break;
+      case 'confirm tenure':
+      case 'resend otp':
+      case 'resendOtp confirmTenure':
+      case 'submit review':
+      case 'submit otp': {
+        digitalData.page.pageInfo.errorCode = payload?.errorCode ?? '';
+        digitalData.page.pageInfo.errorMessage = payload?.errorMsg ?? '';
+        break;
+      }
+        // do nothing
+    }
+  };
+
+  /**
+     * Send analytics events.
+     * @param {string} eventType
+     * @param {object} payload
+     * @param {string} journeyState
+     * @param {object} formData
+     * @param {object} currentFormContext
+     */
+  const sendAnalyticsEvent = (eventType, payload, journeyState, formData) => {
+    const digitalData = createDeepCopyFromBlueprint(ANALYTICS_OBJECT_SEMI);
+    const attributes = ANALYTICS_LINK_BTN[eventType];
+    populateResponse(payload, eventType, digitalData);
+    sendSubmitClickEvent(eventType, attributes?.linkType, formData, journeyState, digitalData);
+  };
+
+  /**
+    * sendErrorAnalytics
+    * @param {string} errorCode
+    * @param {string} errorMsg
+    * @param {string} journeyState
+    * @param {object} globals
+    */
+  function sendErrorAnalytics(errorCode, errorMsg, journeyState, globals) {
+    const digitalData = createDeepCopyFromBlueprint(ANALYTICS_PAGE_LOAD_OBJECT_SEMI);
+    setAnalyticPageLoadProps(journeyState, santizedFormDataWithContext(globals), digitalData);
+    digitalData.page.pageInfo.errorCode = errorCode;
+    digitalData.page.pageInfo.errorMessage = errorMsg;
+    digitalData.page.pageInfo.errorAPI = ''; // "OTP_Validation|EligibilityCheck"
+    digitalData.page.pageInfo.pageName = ANALYTICS_PAGE_NAME['Error Page'];
+    if (window) {
+      window.digitalData = digitalData || {};
+    }
+    _satellite.track('pageload');
+  }
+
+  /**
+    * sendAnalytics
+    * @param {string} eventType
+    * @param {string} payload
+    * @param {string} journeyState
+    * @param {object} globals
+    */
+  function sendAnalytics(eventType, payload, journeyState, globals) {
+    const formData = santizedFormDataWithContext(globals);
+    if (eventType.includes('page load')) {
+      const pageName = ANALYTICS_PAGE_NAME['page load'];
+      sendPageloadEvent(journeyState, formData, pageName);
+    } else {
+      sendAnalyticsEvent(eventType, payload, journeyState, formData);
+    }
+  }
+
   const {
     CURRENT_FORM_CONTEXT: currentFormContext,
     JOURNEY_NAME: journeyName,
@@ -2606,42 +2085,81 @@
     CHANNELS,
     ERROR_MSG,
     FLOWS_ERROR_MESSAGES,
-    // eslint-disable-next-line no-unused-vars
-    RESPONSE_PAYLOAD,
   } = SEMI_CONSTANT;
 
   const isNodeEnv = typeof process !== 'undefined' && process.versions && process.versions.node;
+
+  // Initialize all SEMI Journey Context Variables & formRuntime variables.
+  currentFormContext.totalSelect = 0;
+  currentFormContext.billed = 0;
+  currentFormContext.unbilled = 0;
+  currentFormContext.tadMinusMadValue = 0;
+  currentFormContext.txnSelectExceedLimit = 1000000; // ten lakhs txn's select exceeding limit
+  let tnxPopupAlertOnce = 0; // flag alert for the pop to show only once on click of continue
+  let resendOtpCount = 0;
+  let resendOtpCount2 = 0;
+  const userPrevSelect = {};
+
+  const onPageLoadAnalytics = async () => {
+    const journeyData = {};
+    if (typeof window !== 'undefined') {
+      // eslint-disable-next-line no-underscore-dangle, no-undef
+      journeyData.journeyId = myForm.resolveQualifiedName('$form.runtime.journeyId')._data.$_value;
+      journeyData.journeyName = journeyName;
+      sendAnalytics(
+        'page load',
+        {},
+        ANALYTICS_JOURNEY_STATE['page load'],
+        journeyData,
+      );
+    }
+  };
+
+  setTimeout(() => {
+    if (typeof window !== 'undefined') {
+      onPageLoadAnalytics();
+    }
+  }, 5000);
+
+  /**
+   * For Web returing currentFormContext as defined in variable
+   * Ideally every custom function should be pure function, i.e it should not have any side effect
+   * As per current implementation `currentFormContext` is a state outside of the function,
+   * so for Flow we have did special handling by storing strigified value in `globals.form.runtime.currentFormContext`
+   *
+   * @param {scope} globals
+   * @returns
+   */
+  function getCurrentFormContext(globals) {
+    if (isNodeEnv) {
+      return JSON.parse(globals.form.runtime.currentFormContext.$value || '{}');
+    }
+    return currentFormContext;
+  }
 
   /**
      * generates the journeyId
      * @param {string} visitMode - The visit mode (e.g., "online", "offline").
      * @param {string} journeyAbbreviation - The abbreviation for the journey.
      * @param {string} channel - The channel through which the journey is initiated.
+     * @param {object} globals
      */
-  // eslint-disable-next-line no-unused-vars
-  function generateJourneyId(visitMode, journeyAbbreviation, channel) {
+  function createJourneyId(visitMode, journeyAbbreviation, channelValue, globals) {
     const dynamicUUID = generateUUID();
-    const journeyId = `${dynamicUUID}_01_${journeyAbbreviation}_${visitMode}_${channel}`;
-    return journeyId;
-  }
-
-  // Initialize all SEMI Journey Context Variables & formRuntime variables.
-  currentFormContext.journeyName = journeyName;
-  currentFormContext.journeyID = generateJourneyId('a', 'b', 'c');
-  currentFormContext.totalSelect = 0;
-  currentFormContext.billed = 0;
-  currentFormContext.unbilled = 0;
-  currentFormContext.billedMaxSelect = 0;
-  currentFormContext.txnSelectExceedLimit = 1000000; // ten lakhs txn's select exceeding limit
-  let tnxPopupAlertOnce = 0; // flag alert for the pop to show only once on click of continue
-  let resendOtpCount = 0;
-  let resendOtpCount2 = 0;
-
-  function getCurrentFormContext(globals) {
+    // var dispInstance = getDispatcherInstance();
+    let channel = channelValue;
+    journeyAbbreviation = 'SEMI';
+    channel = 'WEB';
     if (isNodeEnv) {
-      return JSON.parse(globals.form.runtime.currentFormContext.$value || '{}');
+      channel = 'WHATSAPP';
     }
-    return currentFormContext;
+    const journeyId = globals.functions.exportData().smartemi?.journeyId || `${dynamicUUID}_01_${journeyAbbreviation}_${visitMode}_${channel}`;
+    globals.functions.setProperty(globals.form.runtime.journeyId, { value: journeyId });
+
+    // Update the form context
+    currentFormContext.journeyName = journeyName;
+    currentFormContext.journeyID = journeyId;
+    globals.functions.setProperty(globals.form.runtime.currentFormContext, { value: JSON.stringify({ ...currentFormContext }) });
   }
 
   /**
@@ -2662,8 +2180,6 @@
       } else {
         globals.functions.setProperty(otpPanel.secondsPanel, { visible: false });
       }
-      globals.functions.setProperty(globals.form.runtime.journeyId, { value: currentFormContext.journeyID });
-      currentFormContext.journeyName = JOURNEY_NAME;
       displayLoader$1();
     }
     let path = semiEndpoints.otpGen;
@@ -2671,8 +2187,8 @@
       requestString: {
         mobileNo: mobileNumber,
         cardNo: cardDigits,
-        journeyID: currentFormContext.journeyID,
-        journeyName: currentFormContext.journeyName,
+        journeyID: globals.form.runtime.journeyId.$value || currentFormContext.journeyID,
+        journeyName: globals.form.runtime.journeyName.$value || currentFormContext.journeyName,
       },
     };
     if (channel === CHANNELS.adobeWhatsApp) {
@@ -2682,8 +2198,8 @@
           mobileNo: mobileNumber,
           cardNo: cardDigits,
           proCode: PRO_CODE,
-          journeyID: currentFormContext.journeyID,
-          journeyName: currentFormContext.journeyName,
+          journeyID: globals.form.runtime.journeyId.$value,
+          journeyName: globals.form.runtime.journeyName.$value,
           channel: CHANNELS.adobeWhatsApp,
         },
       };
@@ -2699,15 +2215,15 @@
    * @param {object} globals
    * @return {PROMISE}
    */
-  function otpValV1(mobileNumber, cardDigits, otpNumber) {
+  function otpValV1(mobileNumber, cardDigits, otpNumber, globals) {
     const jsonObj = {
       requestString: {
         mobileNo: mobileNumber,
         cardNo: cardDigits,
         OTP: otpNumber,
         proCode: PRO_CODE,
-        journeyID: currentFormContext.journeyID,
-        journeyName: currentFormContext.journeyName,
+        journeyID: globals.form.runtime.journeyId.$value || currentFormContext.journeyID,
+        journeyName: globals.form.runtime.journeyName.$value || currentFormContext.journeyName,
       },
     };
     const path = semiEndpoints.otpVal;
@@ -2721,16 +2237,16 @@
 
   /**
    * @name handleWrongCCDetailsFlows
-   * @param {object} ccNumber 
-   * @param {object} wrongNumberCount 
-   * @param {string} errorMessage 
-   * @param {scope} globals 
+   * @param {object} ccNumber
+   * @param {object} wrongNumberCount
+   * @param {string} errorMessage
+   * @param {scope} globals
    */
   function handleWrongCCDetailsFlows(ccNumber, wrongNumberCount, errorMessage, globals) {
     // wrong CC number retry is handled in the flow only
-    if(!isNodeEnv) return;
+    if (!isNodeEnv) return;
     const count = wrongNumberCount.$value;
-    if(count < 2) {
+    if (count < 2) {
       globals.functions.markFieldAsInvalid(ccNumber.$qualifiedName, errorMessage, { useQualifiedName: true });
       globals.functions.setProperty(wrongNumberCount, { value: count + 1 });
     }
@@ -2752,14 +2268,14 @@
     } else {
       globals.functions.setProperty(otpPanel.secondsPanel, { visible: false });
     }
-    const currentFormContext = getCurrentFormContext(globals);
+    const formContext = getCurrentFormContext(globals);
     const jsonObj = {
       requestString: {
         mobileNo: mobileNumber,
         cardNo: cardDigits,
-        encryptedToken: currentFormContext.EligibilityResponse.responseString.records[0].encryptedToken,
-        journeyID: currentFormContext.journeyID,
-        journeyName: currentFormContext.journeyName,
+        encryptedToken: formContext.EligibilityResponse.responseString.records[0].encryptedToken,
+        journeyID: globals.form.runtime.journeyId.$value,
+        journeyName: globals.form.runtime.journeyName.$value,
       },
     };
     const path = semiEndpoints.preexecution;
@@ -2842,7 +2358,7 @@
     imageEl?.childNodes[1].setAttribute('srcset', imagePath);
   };
 
-  const DELAY = 100;
+  const DELAY = 0;
   const DELTA_DELAY = 120;
 
   /**
@@ -2866,10 +2382,9 @@
         authCode: txn?.AUTH_CODE || txn?.authCode,
         logicMod: txn?.LOGICMOD || txn?.logicMod,
         aem_txn_type: txn?.type,
-      }
+      };
     });
-    console.log('txnsData: ', txnsData);
-    return txnsData
+    return txnsData;
   };
 
   // Special handling for whatsapp flow, can be removed once proper fix is done
@@ -2924,6 +2439,31 @@
   };
 
   /**
+   * @name customDispatchEvent - to dispatch custom event on form
+   * @param {string} eventName - event name
+   * @param {object} payload - payload to dispatch
+   * @param {scope} globals - globals
+   */
+  function customDispatchEvent(eventName, payload, globals) {
+    let evtPayload = payload;
+    if (isNodeEnv && payload?.errorCode) {
+      if (FLOWS_ERROR_MESSAGES[payload.errorCode]) {
+        evtPayload = { ...evtPayload, errorMsg: FLOWS_ERROR_MESSAGES[payload.errorCode] };
+      }
+    }
+    globals.functions.dispatchEvent(globals.form, `custom:${eventName}`, evtPayload);
+  }
+
+  const handleResendOtp2VisibilityInFlow = (countOfResendOtp, globals) => {
+    if (!isNodeEnv) return;
+    const otpPanel = globals.form.aem_semiWizard.aem_selectTenure.aem_otpPanelConfirmation.aem_otpPanel2;
+    if (countOfResendOtp >= DATA_LIMITS.maxOtpResendLimit) {
+      const properties = otpPanel.aem_otpResend2.$properties;
+      globals.functions.setProperty(otpPanel.aem_otpResend2, { properties: { ...properties, 'flow:setVisible': false } });
+    }
+  };
+
+  /**
    * calls function to add styling to completed steppers
    *
    * @function changeWizardView
@@ -2945,16 +2485,17 @@
     // const resPayload = RESPONSE_PAYLOAD.response;
     const resPayload = resPayload1;
     const response = {};
+    const formContext = getCurrentFormContext(globals);
     try {
       /* billed txn maximum amount select limt */
-      currentFormContext.billedMaxSelect = ((parseFloat(resPayload.blockCode.tad) / 100) - (parseFloat(resPayload.blockCode.mad) / 100));
+      formContext.tadMinusMadValue = ((parseFloat(resPayload.blockCode.tad) / 100) - (parseFloat(resPayload.blockCode.mad) / 100));
       /* continue btn disabling code added temorary, can be removed after form authoring */
       globals.functions.setProperty(globals.form.aem_semiWizard.aem_chooseTransactions.aem_txnSelectionContinue, { enabled: false });
-      let ccBilledData = resPayload?.ccBilledTxnResponse?.responseString || [];
-      let ccUnBilledData = resPayload?.ccUnBilledTxnResponse?.responseString || [];
+      let ccBilledData = resPayload?.ccBilledTxnResponse?.responseString ? resPayload?.ccBilledTxnResponse?.responseString : [];
+      let ccUnBilledData = resPayload?.ccUnBilledTxnResponse?.responseString ? resPayload?.ccUnBilledTxnResponse?.responseString : [];
       if (isNodeEnv) {
         ccBilledData = resPayload?.ccBilledTxnResponse || [];
-        if(ccBilledData.length === 0) {
+        if (ccBilledData.length === 0) {
           customDispatchEvent('showErrorSnackbar', { errorMessage: ERROR_MSG.noEligibleTxnFlow }, globals);
           response.nextscreen = 'failure';
           return response;
@@ -2966,8 +2507,8 @@
         // apply sort by amount here to ccBilledData
         ccUnBilledData = sortDataByAmount(ccUnBilledData, 'amount');
       }
-      currentFormContext.EligibilityResponse = resPayload;
-      globals.functions.setProperty(globals.form.runtime.currentFormContext, { value: JSON.stringify({ ...currentFormContext }) });
+      formContext.EligibilityResponse = resPayload;
+      globals.functions.setProperty(globals.form.runtime.currentFormContext, { value: JSON.stringify({ ...formContext }) });
       const billedTxnPanel = globals.form.aem_semiWizard.aem_chooseTransactions.billedTxnFragment.aem_chooseTransactions.aem_TxnsList;
       const unBilledTxnPanel = globals.form.aem_semiWizard.aem_chooseTransactions.unbilledTxnFragment.aem_chooseTransactions.aem_TxnsList;
       const allTxn = ccBilledData.concat(ccUnBilledData);
@@ -2976,7 +2517,7 @@
       globals.functions.setProperty(globals.form.aem_semiWizard.aem_chooseTransactions.billedTxnFragment.aem_chooseTransactions.aem_txnHeaderPanel.aem_TxnAvailable, { value: `Billed Transaction (${ccBilledData?.length})` });
       globals.functions.setProperty(globals.form.aem_semiWizard.aem_chooseTransactions.unbilledTxnFragment.aem_chooseTransactions.aem_txnHeaderPanel.aem_TxnAvailable, { value: `Unbilled Transaction (${ccUnBilledData?.length})` });
       // set runtime values
-      globals.functions.setProperty(globals.form.runtime.originAcct, { value: currentFormContext.EligibilityResponse.responseString.aanNumber });
+      globals.functions.setProperty(globals.form.runtime.originAcct, { value: formContext.EligibilityResponse.responseString.aanNumber });
       changeWizardView();
       // Display card and move wizard view
       if (!isNodeEnv) {
@@ -2985,15 +2526,15 @@
       }
       response.nextscreen = 'success';
       // show txn summery text value
-      if ((resPayload?.ccBilledTxnResponse?.responseString.length) || (resPayload?.ccUnBilledTxnResponse?.responseString.length)) {
+      if ((ccUnBilledData.length) || (ccUnBilledData.length)) {
         globals.functions.setProperty(globals.form.aem_semiWizard.aem_chooseTransactions.aem_txnsSummaryText, { visible: true });
       }
       // hide the unbilled / unbillled accordian if the response payload of txn is not present
-      if (resPayload?.ccBilledTxnResponse?.responseString.length === 0) {
+      if (ccBilledData.length === 0) {
         globals.functions.setProperty(globals.form.aem_semiWizard.aem_chooseTransactions.billedTxnFragment, { visible: false });
         globals.functions.setProperty(globals.form.aem_semiWizard.aem_chooseTransactions.billedTxnFragment.aem_chooseTransactions.aem_TxnsList, { visible: false });
       }
-      if (resPayload?.ccUnBilledTxnResponse?.responseString?.length === 0) {
+      if (ccUnBilledData?.length === 0) {
         globals.functions.setProperty(globals.form.aem_semiWizard.aem_chooseTransactions.unbilledTxnFragment, { visible: false });
         globals.functions.setProperty(globals.form.aem_semiWizard.aem_chooseTransactions.unbilledTxnFragment.aem_chooseTransactions.aem_TxnsList, { visible: false });
       }
@@ -3016,7 +2557,7 @@
         period: responseStringJsonObj[0][periodKey],
         interest: responseStringJsonObj[0][interestKey],
         tid: responseStringJsonObj[0][tidKey],
-        processingFee: responseStringJsonObj[0].memoLine1
+        processingFee: responseStringJsonObj[0].memoLine1,
       };
     });
     return loanoptions;
@@ -3074,6 +2615,7 @@
     const semiFormData = globals.functions.exportData().smartemi;
     const selectedTxnList = (semiFormData?.aem_billedTxn?.aem_billedTxnSelection?.concat(semiFormData?.aem_unbilledTxn?.aem_unbilledTxnSection))?.filter((txn) => txn.aem_Txn_checkBox === 'on');
     const totalAmountOfTxn = selectedTxnList?.reduce((prev, acc) => prev + parseFloat(acc.aem_TxnAmt.replace(/[^\d.-]/g, '')), 0);
+    currentFormContext.SMART_EMI_AMOUNT = totalAmountOfTxn;
     return totalAmountOfTxn;
   };
 
@@ -3132,8 +2674,9 @@
     const TOTAL_AMT_IN_WORDS = `${numberToText(totalAmountOfTxn)}`;
     /* set the total amount in hidden field - thank u scrren */
     globals.functions.setProperty(globals.form.aem_semiWizard.aem_success.aem_hiddenTotalAmt, { value: DISPLAY_TOTAL_AMT });
+    /* hidden fields to set for reports */
     /* display amount */
-    if(!isNodeEnv) {
+    if (!isNodeEnv) {
       globals.functions.setProperty(globals.form.aem_semicreditCardDisplay.aem_semicreditCardContent.aem_customerNameLabel, { value: LABEL_AMT_SELCTED });
       globals.functions.setProperty(globals.form.aem_semicreditCardDisplay.aem_semicreditCardContent.aem_outStandingLabel, { value: DISPLAY_TOTAL_AMT });
       globals.functions.setProperty(globals.form.aem_semicreditCardDisplay.aem_semicreditCardContent.aem_outStandingAmt, { value: `${MISC.rupeesUnicode} ${TOTAL_AMT_IN_WORDS}` });
@@ -3175,7 +2718,7 @@
       globals.functions.setProperty(globals.form.aem_semiWizard.aem_chooseTransactions.aem_txtSelectionPopupWrapper.aem_txtSelectionPopup, { visible: true });
       globals.functions.setProperty(globals.form.aem_semiWizard.aem_chooseTransactions.aem_txtSelectionPopupWrapper.aem_txtSelectionPopup.aem_txtSelectionConfirmation, { value: MSG });
     } else {
-      if(!isNodeEnv) {
+      if (!isNodeEnv) {
         moveWizardView(domElements.semiWizard, domElements.selectTenure);
         handleMdmUtmParam(globals);
       }
@@ -3205,13 +2748,22 @@
       ...item,
       aem_TxnAmt: (currencyStrToNum(item?.aem_TxnAmt)),
     }));
-    mapSortedDat?.forEach((_data, i) => {
-      const data = {
-        ..._data,
-        type: txnType,
-      };
-      setData(globals, pannel, data, i);
-    });
+    try {
+      mapSortedDat?.forEach((_data, i) => {
+        const data = {
+          ..._data,
+          type: txnType,
+        };
+        const delay = DELAY + (DELTA_DELAY * i);
+        setTimeout(() => {
+          setData(globals, pannel, data, i);
+        }, delay);
+      });
+      userPrevSelect.prevTxnType = 'SORT_BY';
+    } catch (error) {
+      // eslint-disable-next-line no-console
+      console.log(error, 'sortEr');
+    }
     setTimeout(() => {
       isUserSelection = !isUserSelection;
     }, 1000);
@@ -3248,6 +2800,109 @@
   const disableAllTxnFields = (txnList, globals) => txnList?.forEach((list) => globals.functions.setProperty(list.aem_Txn_checkBox, { enabled: (list.aem_Txn_checkBox.$value === 'on') }));
 
   /**
+   * function will be triggered on click of ok button of tag/mad alert
+   * Unselect the previous checkbox value if it reaches the tad/ mad calculation.
+   * @param {object} globals - global form object.
+   */
+  const handleTadMadAlert = (globals) => {
+    const prevSelectedRowData = userPrevSelect.txnRowData;
+    if (userPrevSelect.prevTxnType === 'SELECT_TOP') {
+      globals.functions.setProperty(globals.form.aem_semiWizard.aem_chooseTransactions.aem_txtSelectionPopupWrapper, { visible: false });
+      const billedList = globals.form.aem_semiWizard.aem_chooseTransactions.billedTxnFragment.aem_chooseTransactions.aem_TxnsList;
+      const mapBiledList = billedList?.map((el) => ({ checkVal: el.aem_Txn_checkBox.$value, amtVal: (Number(String(el.aem_TxnAmt.$value).replace(/[^\d]/g, '')) / 100), id: el.aem_TxnID.$value }));
+      let billedTotal = currentFormContext.sumOfbilledTxnOnly;
+
+      /* track selected index calculate break point for tad-mad */
+      let breakReducer = null;
+      const mapBiledSelected = mapBiledList?.filter((el) => el.checkVal);
+      const trackLastIndex = mapBiledSelected?.reduceRight((acc, curr, i) => {
+        billedTotal -= curr.amtVal;
+        if (billedTotal < currentFormContext.tadMinusMadValue) {
+          if (!breakReducer) {
+            breakReducer = i;
+            if (breakReducer) {
+              acc.push(i);
+            }
+          }
+        } else {
+          acc.push(i);
+        }
+        return acc;
+      }, []);
+
+      /* unselect each billed values based on tracklastIndex */
+      trackLastIndex?.forEach(async (selectedIndex) => globals.functions.setProperty(billedList[selectedIndex].aem_Txn_checkBox, { value: undefined }));
+
+      /* Select Top Ten Handling - After unchecking the billed items based on the TAD-MAD value, if the user has selected 'Top Ten',
+       the 'Select Top Ten' functionality should apply to the remaining available unbilled transaction list */
+      const prevSelectedBilled = mapBiledSelected;
+      const billedSelected = prevSelectedBilled.length - trackLastIndex.length;
+      const availableToSelectInUnbilled = userPrevSelect.txnAvailableToSelectInTopTen - billedSelected;
+      if (availableToSelectInUnbilled) {
+        const unbilledSortByAmt = sortDataByAmount(globals.functions.exportData().smartemi.aem_unbilledTxn.aem_unbilledTxnSection);
+        const unbilledAvailableToselect = unbilledSortByAmt?.slice(0, availableToSelectInUnbilled);
+        const unbilledPanel = globals.form.aem_semiWizard.aem_chooseTransactions.unbilledTxnFragment.aem_chooseTransactions.aem_TxnsList;
+        const billedPanel = globals.form.aem_semiWizard.aem_chooseTransactions.billedTxnFragment.aem_chooseTransactions.aem_TxnsList;
+        try {
+          unbilledAvailableToselect?.forEach((item) => {
+            const foundMatch = unbilledPanel.find((el) => (el.aem_TxnAmt.$value === item.aem_TxnAmt) && ((el.aem_TxnDate.$value === item.aem_TxnDate) && (el.aem_TxnName.$value === item.aem_TxnName) && (el.logicMod.$value === item.logicMod) && (el.aem_TxnID.$value === item.aem_TxnID)));
+            globals.functions.setProperty(foundMatch.aem_Txn_checkBox, { value: 'on', enabled: true });
+          });
+          if ((availableToSelectInUnbilled + billedSelected) === DATA_LIMITS.totalSelectLimit) { // selected top ten
+            userPrevSelect.tadMadReachedTopTen = true;
+            setTimeout(() => {
+              disableCheckBoxes(billedPanel, false, globals);
+              disableCheckBoxes(unbilledPanel, false, globals);
+              userPrevSelect.tadMadReachedTopTen = false;
+            });
+          }
+        } catch (error) {
+          // eslint-disable-next-line no-console
+          console.log(error);
+        }
+      }
+      /* */
+      userPrevSelect.prevTxnType = null;
+      return;
+    }
+    const BILLED_FRAG = 'billedTxnFragment';
+    const UNBILLED_FRAG = 'unbilledTxnFragment';
+    const TXN_FRAG = (userPrevSelect.prevTxnType === 'BILLED') ? BILLED_FRAG : UNBILLED_FRAG;
+
+    const txnList = globals.form.aem_semiWizard.aem_chooseTransactions[`${TXN_FRAG}`].aem_chooseTransactions.aem_TxnsList;
+    if (currentFormContext.sumOfbilledTxnOnly > currentFormContext.tadMinusMadValue) {
+      const txnArrayList = txnList?.map((el) => ({ checkVal: el.aem_Txn_checkBox.$value, amtVal: el.aem_TxnAmt.$value, id: el.aem_TxnID.$value }));
+      const findExactSelect = txnList?.find((el) => (prevSelectedRowData?.txnAmt === el.aem_TxnAmt.$value) && (prevSelectedRowData?.txnDate === el.aem_TxnDate.$value) && (prevSelectedRowData?.txnId === el.aem_TxnID.$value) && (prevSelectedRowData?.txnType === el.aem_txn_type.$value));
+      const indexOfPrevSelect = txnArrayList.findIndex((el) => el.id === findExactSelect.aem_TxnID.$value);
+      globals.functions.setProperty(txnList[indexOfPrevSelect].aem_Txn_checkBox, { value: undefined });
+    }
+  };
+
+  /**
+   * getSelectedCount
+   * get the total count of txn selected both billed and unbilled.
+   * @param {object} globals - global form object.
+   * @returns {object} - returns selectedbilledCount, selectedUnbilledCount, totallySelectedCount
+   */
+  const getSelectedCount = (globals) => {
+    const billedData = globals.functions.exportData().smartemi.aem_billedTxn.aem_billedTxnSelection;
+    const unbilledData = globals.functions.exportData().smartemi.aem_unbilledTxn.aem_unbilledTxnSection;
+    const totalSelectCount = billedData.concat(unbilledData).filter((el) => el.aem_Txn_checkBox).length;
+    const billedSelectCount = billedData.filter((el) => el.aem_Txn_checkBox)?.length;
+    const unBilledSelectCount = unbilledData.filter((el) => el.aem_Txn_checkBox)?.length;
+    currentFormContext.TXN_SELECTED_COUNTS = {
+      billed: billedSelectCount,
+      unBilled: unBilledSelectCount,
+      total: totalSelectCount,
+    };
+    return ({
+      billed: billedSelectCount,
+      unBilled: unBilledSelectCount,
+      total: totalSelectCount,
+    });
+  };
+
+  /**
   * function to update number of transaction selected.
   * @param {string} checkboxVal
   * @param {number} amount
@@ -3259,40 +2914,74 @@
   function txnSelectHandler(checkboxVal, amount, ID, date, txnType, globals) {
     /* enable-popup once it reaches BILLED-MAX-AMT-LIMIT */
 
-    const currentFormContext = getCurrentFormContext(globals);
+    const formContext = getCurrentFormContext(globals);
     const billedTxnList = globals.form.aem_semiWizard.aem_chooseTransactions.billedTxnFragment.aem_chooseTransactions.aem_TxnsList;
     const unbilledTxnList = globals.form.aem_semiWizard.aem_chooseTransactions.unbilledTxnFragment.aem_chooseTransactions.aem_TxnsList;
-
-    // In case of Web only billed transaction is displayed on billedTxn panel but in whatsapp both billed and unbilled are displayed
-    const selectedTransactionsBilledPanel = globals.functions.exportData().smartemi.aem_billedTxn.aem_billedTxnSelection.filter((el) => {
-      if(isNodeEnv) {
-        return el.aem_Txn_checkBox && el.aem_txn_type === "billed";
+    const MAX_SELECT = 10;
+    const BILLED_FRAG = 'billedTxnFragment';
+    const UNBILLED_FRAG = 'unbilledTxnFragment';
+    const TXN_FRAG = txnType === 'BILLED' ? BILLED_FRAG : UNBILLED_FRAG;
+    const COUNT = getSelectedCount(globals);
+    const txnSelected = globals.form.aem_semiWizard.aem_chooseTransactions?.[`${TXN_FRAG}`].aem_chooseTransactions.aem_txnHeaderPanel.aem_txnSelected;
+    const SELECTED = `${(txnType === 'BILLED') ? COUNT?.billed : COUNT?.unBilled} Selected`;
+    /* popup alert hanldles for the tad-mad values */
+    const sumOfbilledTxnOnly = billedTxnList?.filter((el) => {
+      // In case of Web only billed transaction is displayed on billedTxn panel but in whatsapp both billed and unbilled are displayed
+      if (isNodeEnv) {
+        return el.aem_Txn_checkBox.$value && el.aem_txn_type.$value === 'billed';
       }
-      return aem_Txn_checkBox;
-    });
-    const totalSelectBilledTxnAmt = selectedTransactionsBilledPanel.map((el) => (Number((String(el?.aem_TxnAmt))?.replace(/[^\d]/g, '')) / 100)).reduce((prev, acc) => prev + acc, 0);
-    if (totalSelectBilledTxnAmt) {
-
+      return el.aem_Txn_checkBox.$value;
+    })?.reduce((acc, prev) => (acc + Number(String(prev.aem_TxnAmt.$value).replace(/[^\d]/g, '') / 100)), 0);
+    formContext.sumOfbilledTxnOnly = sumOfbilledTxnOnly;
+    if (sumOfbilledTxnOnly) {
       /* popup alert hanldles */
-      if (totalSelectBilledTxnAmt > currentFormContext.billedMaxSelect) {
-        const SELECTED_MAX_BILL = ` Please select Billed Transactions Amount Max up to Rs.${nfObject.format(currentFormContext.billedMaxSelect)}`;
+      const selectedTotalTxn = globals.functions.exportData().smartemi.aem_billedTxn.aem_billedTxnSelection.filter((el) => el.aem_Txn_checkBox).length + globals.functions.exportData().smartemi.aem_unbilledTxn.aem_unbilledTxnSection.filter((el) => el.aem_Txn_checkBox).length;
+      if (sumOfbilledTxnOnly > formContext.tadMinusMadValue) {
+        const SELECTED_MAX_BILL = ` Please select Billed Transactions Amount Max up to Rs.${nfObject.format(formContext.tadMinusMadValue)}`;
         globals.functions.setProperty(globals.form.aem_semiWizard.aem_chooseTransactions.aem_txtSelectionPopupWrapper, { visible: true });
         globals.functions.setProperty(globals.form.aem_semiWizard.aem_chooseTransactions.aem_txtSelectionPopupWrapper.aem_txtSelectionPopup, { visible: true });
         globals.functions.setProperty(globals.form.aem_semiWizard.aem_chooseTransactions.aem_txtSelectionPopupWrapper.aem_txtSelectionPopup.aem_txtSelectionConfirmation, { value: SELECTED_MAX_BILL });
+        globals.functions.setProperty(globals.form.aem_semiWizard.aem_chooseTransactions.aem_txtSelectionPopupWrapper.aem_txtSelectionPopup.aem_txtSelectionConfirmation1, { visible: false });
         globals.functions.setProperty(globals.form.aem_semiWizard.aem_chooseTransactions.aem_txnSelectionContinue, { enabled: false });
         /* disabling selected fields in case disabled */
         disableAllTxnFields(unbilledTxnList, globals);
         disableAllTxnFields(billedTxnList, globals);
+
         // display error message in whatsapp flow
         customDispatchEvent('showErrorSnackbar', { errorMessage: SELECTED_MAX_BILL }, globals);
+
+        formContext.totalSelect = COUNT?.total;
+        userPrevSelect.txnRowData = {
+          txnCheck: checkboxVal,
+          txnAmt: amount,
+          txnId: ID,
+          txnDate: date,
+          txnType,
+        };
+        if (userPrevSelect.prevTxnType === 'SELECT_TOP') {
+          userPrevSelect.prevTxnType = 'SELECT_TOP';
+        } else {
+          userPrevSelect.prevTxnType = txnType;
+        }
+        const TOTAL_SELECT = `Total selected ${formContext.totalSelect}/${MAX_SELECT}`;
+        globals.functions.setProperty(globals.form.aem_semiWizard.aem_chooseTransactions.aem_transactionsInfoPanel.aem_TotalSelectedTxt, { value: TOTAL_SELECT });// total no of select billed or unbilled txn list
+        globals.functions.setProperty(txnSelected, { value: SELECTED }); // set number of select in billed or unbilled txn list
         return;
       }
       globals.functions.setProperty(globals.form.aem_semiWizard.aem_chooseTransactions.aem_txnSelectionContinue, { enabled: true });
+      /* enabling selected fields in case disabled */
+      enableAllTxnFields(unbilledTxnList, globals);
+      enableAllTxnFields(billedTxnList, globals);
+      formContext.totalSelect = selectedTotalTxn;
+      const TOTAL_SELECT = `Total selected ${formContext.totalSelect}/${MAX_SELECT}`;
+      globals.functions.setProperty(globals.form.aem_semiWizard.aem_chooseTransactions.aem_transactionsInfoPanel.aem_TotalSelectedTxt, { value: TOTAL_SELECT });// total no of select billed or unbilled txn list
+      globals.functions.setProperty(txnSelected, { value: SELECTED }); // set number of select in billed or unbilled txn list
+      // return;
     }
 
     /* enable alert message if the user exceed selecting the txn above 10 laksh. */
     const totalSelectTxnAmt = getTotalAmount(globals);
-    const emiProceedCheck = (totalSelectTxnAmt <= currentFormContext.txnSelectExceedLimit);
+    const emiProceedCheck = (totalSelectTxnAmt <= formContext.txnSelectExceedLimit);
     if (!emiProceedCheck) {
       const alertMsg = 'You can select up to Rs 10 lacs. To proceed further please unselect some transaction.';
       globals.functions.setProperty(globals.form.aem_semiWizard.aem_chooseTransactions.aem_txtSelectionPopupWrapper, { visible: true });
@@ -3307,33 +2996,18 @@
     customDispatchEvent('showErrorSnackbar', { errorMessage: undefined }, globals);
     // null || ON
     if (selectTopTenFlag || isUserSelection) return;
-    const MAX_SELECT = 10;
-    const BILLED_FRAG = 'billedTxnFragment';
-    const UNBILLED_FRAG = 'unbilledTxnFragment';
-    const TXN_FRAG = txnType === 'BILLED' ? BILLED_FRAG : UNBILLED_FRAG;
-
-    const txnList = globals.form.aem_semiWizard.aem_chooseTransactions?.[`${TXN_FRAG}`].aem_chooseTransactions.aem_TxnsList;
-    const txnSelected = globals.form.aem_semiWizard.aem_chooseTransactions?.[`${TXN_FRAG}`].aem_chooseTransactions.aem_txnHeaderPanel.aem_txnSelected;
-    const selectedList = txnList?.filter((el) => (el.aem_Txn_checkBox.$value === 'on'));
-    const SELECTED = `${selectedList?.length} Selected`;
     globals.functions.setProperty(txnSelected, { value: SELECTED }); // set number of select in billed or unbilled txn list
-    if ((checkboxVal === 'on') && ((txnType === 'BILLED') || (txnType === 'UNBILLED'))) {
-      currentFormContext.totalSelect += 1;
-    } else if ((currentFormContext.totalSelect > 0)) {
-      currentFormContext.totalSelect -= 1;
-    }
-    const TOTAL_SELECT = `Total selected ${currentFormContext.totalSelect}/${MAX_SELECT}`;
-
-    if ((currentFormContext.totalSelect <= MAX_SELECT)) {
+    formContext.totalSelect = COUNT?.total;
+    const TOTAL_SELECT = `Total selected ${formContext.totalSelect}/${MAX_SELECT}`;
+    if ((formContext.totalSelect <= MAX_SELECT)) {
       globals.functions.setProperty(globals.form.aem_semiWizard.aem_chooseTransactions.aem_transactionsInfoPanel.aem_TotalSelectedTxt, { value: TOTAL_SELECT });// total no of select billed or unbilled txn list
     }
-
-    if (currentFormContext.totalSelect < MAX_SELECT) {
+    if (formContext.totalSelect < MAX_SELECT) {
       /* enabling selected fields in case disabled */
       enableAllTxnFields(unbilledTxnList, globals);
       enableAllTxnFields(billedTxnList, globals);
     }
-    if ((currentFormContext.totalSelect === MAX_SELECT)) {
+    if ((formContext.totalSelect === MAX_SELECT) && (!userPrevSelect.tadMadReachedTopTen)) {
       /* popup alert hanldles */
       const CONFIRM_TXT = 'You can select up to 10 transactions at a time, but you can repeat the process to convert more transactions into SmartEMI.';
       globals.functions.setProperty(globals.form.aem_semiWizard.aem_chooseTransactions.aem_txtSelectionPopupWrapper, { visible: true });
@@ -3345,9 +3019,9 @@
       disableCheckBoxes(billedTxnList, false, globals);
     }
     /* enable disable select-tenure continue button */
-    if ((currentFormContext.totalSelect === 0) || (!emiProceedCheck)) {
+    if ((formContext.totalSelect === 0) || (!emiProceedCheck)) {
       globals.functions.setProperty(globals.form.aem_semiWizard.aem_chooseTransactions.aem_txnSelectionContinue, { enabled: false });
-    } else if ((currentFormContext.totalSelect > 0) || (emiProceedCheck)) {
+    } else if ((formContext.totalSelect > 0) || (emiProceedCheck)) {
       globals.functions.setProperty(globals.form.aem_semiWizard.aem_chooseTransactions.aem_txnSelectionContinue, { enabled: true });
     }
   }
@@ -3380,6 +3054,7 @@
    */
   function selectTopTxn(globals) {
     selectTopTenFlag = !selectTopTenFlag;
+    userPrevSelect.prevTxnType = 'SELECT_TOP';
     const SELECT_TOP_TXN_LIMIT = 10;
     const resPayload = currentFormContext.EligibilityResponse;
     const billedResData = resPayload?.ccBilledTxnResponse?.responseString;
@@ -3391,6 +3066,7 @@
     const allTxn = billed.concat(unBilled);
     const sortedArr = sortDataByAmountSymbol(allTxn);
     const txnAvailableToSelect = (allTxn?.length >= SELECT_TOP_TXN_LIMIT) ? SELECT_TOP_TXN_LIMIT : allTxn?.length;
+    userPrevSelect.txnAvailableToSelectInTopTen = txnAvailableToSelect;
     const sortedTxnList = sortedArr?.slice(0, txnAvailableToSelect);
     let unbilledCheckedItems = 0;
     let billedCheckedItems = 0;
@@ -3460,7 +3136,7 @@
           const rawTenureData = JSON.parse(tenureData[i].aem_tenureRawData);
           const duration = `${parseInt(rawTenureData.period, 10)} Months`;
           globals.functions.setProperty(globals.form.aem_semiWizard.aem_selectTenure.reviewDetailsView.aem_reviewAmount, { value: `${MISC.rupeesUnicode} ${nfObject.format(getTotalAmount(globals))}` });
-          globals.functions.setProperty(globals.form.aem_semiWizard.aem_selectTenure.reviewDetailsView.aem_monthlyEmi, { value: tenureData[i].aem_tenureSelectionEmi + ` @ ${roiMonthly}` });
+          globals.functions.setProperty(globals.form.aem_semiWizard.aem_selectTenure.reviewDetailsView.aem_monthlyEmi, { value: `${tenureData[i].aem_tenureSelectionEmi} @ ${roiMonthly}` });
           globals.functions.setProperty(globals.form.aem_semiWizard.aem_selectTenure.reviewDetailsView.aem_duration, { value: duration });
           globals.functions.setProperty(globals.form.aem_semiWizard.aem_selectTenure.reviewDetailsView.aem_roi, { value: roiMonthly });
           globals.functions.setProperty(globals.form.aem_semiWizard.aem_selectTenure.reviewDetailsView.aem_processingFee, { value: tenureData[i].aem_tenureSelectionProcessing });
@@ -3507,7 +3183,7 @@
     // TODO: repeated code, needed to avoid recomputation
     const emiConversionArray = getEmiArrayOption(globals);
     const loanAmount = emiConversionArray?.reduce((prev, acc) => prev + acc.tranAmt, 0);
-    const loanAmountInInr = `${nfObject.format(loanAmount/100)}`;
+    const loanAmountInInr = `${nfObject.format(loanAmount / 100)}`;
     // const LOAN_AMOUNT = String(emiConversionArray?.reduce((prev, acc) => prev + acc.tranAmt, 0));
     const tenurePlan = globals.functions.exportData().aem_tenureSelectionRepeatablePanel;
     const selectedTenurePlan = tenurePlan?.find((emiPlan) => emiPlan.aem_tenureSelection === '0');
@@ -3551,7 +3227,6 @@
     const eligibiltyResponse = _context.EligibilityResponse;
     const tenurePlan = globals.functions.exportData().aem_tenureSelectionRepeatablePanel;
     const selectedTenurePlan = tenurePlan?.find((emiPlan) => emiPlan.aem_tenureSelection === '0');
-    console.log('selectedTenurePlan', selectedTenurePlan);
     const emiSubData = JSON.parse(selectedTenurePlan?.aem_tenureRawData);
     const PROC_FEES = String(currencyStrToNum(selectedTenurePlan?.aem_tenureSelectionProcessing));
     const INTEREST = emiSubData?.interest; // '030888'
@@ -3581,15 +3256,15 @@
         procFeeWav: PROC_FEES,
         reqNbr: REQ_NBR,
         emiConversion: emiConversionArray,
-        journeyID: currentFormContext.journeyID,
-        journeyName: currentFormContext.journeyName,
+        journeyID: globals.form.runtime.journeyId.$value,
+        journeyName: globals.form.runtime.journeyName.$value,
         ...(!isNodeEnv && { userAgent: window.navigator.userAgent }),
       },
     };
     const path = semiEndpoints.ccSmartEmi;
     if (!isNodeEnv) displayLoader$1();
     // For whatsapp flow visibility controlled via custom property so need to ensure on resend/submit button click property is updated.
-    handleResendOtp2VisibilityInFlow(globals.form.aem_semiWizard.aem_selectTenure.aem_otpPanelConfirmation.aem_otpPanel2.aem_resendOtpCount2.$value, globals); 
+    handleResendOtp2VisibilityInFlow(globals.form.aem_semiWizard.aem_selectTenure.aem_otpPanelConfirmation.aem_otpPanel2.aem_resendOtpCount2.$value, globals);
     return fetchJsonResponse(path, jsonObj, 'POST', !isNodeEnv);
   };
 
@@ -3599,7 +3274,7 @@
    * @param {object} globals - global form object
    */
   const otpTimerV1 = (pannelName, globals) => {
-    if(isNodeEnv) return;
+    if (isNodeEnv) return;
     let sec = DATA_LIMITS.otpTimeLimit;
     let dispSec = DATA_LIMITS.otpTimeLimit;
     const FIRST_PANNEL_OTP = 'firstotp';
@@ -3681,15 +3356,15 @@
       panelOtp.maxLimitOtp = otp2.aem_maxlimitOTP2;
       resendOtpCount2 += 1;
       panelOtp.resendOtpCount = resendOtpCount2;
-      if(isNodeEnv) {
+      if (isNodeEnv) {
         panelOtp.resendOtpCountField = otp2.aem_resendOtpCount2;
-        panelOtp.limitCheck =  otp2.aem_resendOtpCount2.$value < DATA_LIMITS.maxOtpResendLimit;
+        panelOtp.limitCheck = otp2.aem_resendOtpCount2.$value < DATA_LIMITS.maxOtpResendLimit;
         panelOtp.resendOtpCount = otp2.aem_resendOtpCount2.$value + 1;
       }
     }
     const mobileNumber = globals.form.aem_semiWizard.aem_identifierPanel.aem_loginPanel.mobilePanel.aem_mobileNum.$value;
     const cardDigits = globals.form.aem_semiWizard.aem_identifierPanel.aem_loginPanel.aem_cardNo.$value;
-    if(panelOtp.resendOtpCountField) {
+    if (panelOtp.resendOtpCountField) {
       globals.functions.setProperty(panelOtp.resendOtpCountField, { value: panelOtp.resendOtpCount });
     }
     globals.functions.setProperty(panelOtp.otpTimerPanel, { visible: true });
@@ -3700,7 +3375,7 @@
         globals.functions.setProperty(panelOtp.maxLimitOtp, { visible: true });
         // In web resend OTP button is visible after 30 sec, until this it is hidded. So we have usd custom property to control
         // visibility in whatsapp Flow.
-        if(pannelName === SECOND_PANNEL_OTP) {
+        if (pannelName === SECOND_PANNEL_OTP) {
           handleResendOtp2VisibilityInFlow(panelOtp.resendOtpCount, globals);
         }
       }
@@ -3714,15 +3389,6 @@
     return null;
   };
 
-  const handleResendOtp2VisibilityInFlow = (resendOtpCount, globals) => {
-    if(!isNodeEnv) return;
-    const otpPanel = globals.form.aem_semiWizard.aem_selectTenure.aem_otpPanelConfirmation.aem_otpPanel2;
-    if(resendOtpCount >= DATA_LIMITS.maxOtpResendLimit) {
-      const properties = otpPanel.aem_otpResend2.$properties;
-      globals.functions.setProperty(otpPanel.aem_otpResend2, { properties: {...properties, "flow:setVisible": false} });
-    }
-  };
-
   /**
    * on click of t&c navigation, open Url in new tab
    */
@@ -3733,33 +3399,19 @@
     }
   };
 
-  /**
-   * @name customDispatchEvent - to dispatch custom event on form
-   * @param {string} eventName - event name
-   * @param {object} payload - payload to dispatch
-   * @param {scope} globals - globals
-   */
-  function customDispatchEvent(eventName, payload, globals) {
-    let evtPayload = payload;
-    if(isNodeEnv && payload?.errorCode) {
-      if(FLOWS_ERROR_MESSAGES[payload.errorCode]) {
-        evtPayload = { ...evtPayload, errorMsg: FLOWS_ERROR_MESSAGES[payload.errorCode] };
-      }
-    }
-    globals.functions.dispatchEvent(globals.form, `custom:${eventName}`, evtPayload);
-  }
-
   exports.assistedToggleHandler = assistedToggleHandler;
   exports.branchHandler = branchHandler;
   exports.changeCheckboxToToggle = changeCheckboxToToggle;
   exports.changeWizardView = changeWizardView;
   exports.channelDDHandler = channelDDHandler;
   exports.checkELigibilityHandler = checkELigibilityHandler;
+  exports.createJourneyId = createJourneyId;
   exports.customDispatchEvent = customDispatchEvent;
   exports.dsaHandler = dsaHandler;
   exports.getCCSmartEmi = getCCSmartEmi;
   exports.getFlowSuccessPayload = getFlowSuccessPayload;
   exports.getOTPV1 = getOTPV1;
+  exports.handleTadMadAlert = handleTadMadAlert;
   exports.handleWrongCCDetailsFlows = handleWrongCCDetailsFlows;
   exports.invokeJourneyDropOff = invokeJourneyDropOff;
   exports.invokeJourneyDropOffByParam = invokeJourneyDropOffByParam;
@@ -3773,6 +3425,8 @@
   exports.selectTenure = selectTenure;
   exports.selectTopTxn = selectTopTxn;
   exports.semiWizardSwitch = semiWizardSwitch;
+  exports.sendAnalytics = sendAnalytics;
+  exports.sendErrorAnalytics = sendErrorAnalytics;
   exports.sortData = sortData;
   exports.tAndCNavigation = tAndCNavigation;
   exports.txnSelectHandler = txnSelectHandler;

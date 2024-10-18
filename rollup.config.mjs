@@ -3,7 +3,7 @@ export default [
   {
     input: 'creditcards/semi/semi-functions.js',
     output: {
-      file: 'dist-customfunctions/semi.js',
+      file: 'creditcards/dist-functions/semi.js',
       format: 'iife', // Self-contained format
     }
   }

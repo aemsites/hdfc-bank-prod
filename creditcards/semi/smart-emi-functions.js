@@ -112,8 +112,10 @@ function createJourneyId(visitMode, journeyAbbreviation, channelValue, globals) 
   const dynamicUUID = generateUUID();
   // var dispInstance = getDispatcherInstance();
   let channel = channelValue;
+  journeyAbbreviation = 'SEMI'
+  channel = 'WEB'
   if (isNodeEnv) {
-    channel = CHANNELS.adobeWhatsApp;
+    channel = 'WHATSAPP';
   }
   const journeyId = globals.functions.exportData().smartemi?.journeyId || `${dynamicUUID}_01_${journeyAbbreviation}_${visitMode}_${channel}`;
   globals.functions.setProperty(globals.form.runtime.journeyId, { value: journeyId });
