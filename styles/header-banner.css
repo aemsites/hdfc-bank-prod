@@ -50,87 +50,98 @@ header {
     background: var(--color-interface-background-tertiary);
 
     .cmp-container {
+        max-width: 960px;
+        width: 100%;
+        margin: 0 auto;
+        position: relative;
+        max-height: 48px;
+
+        div:nth-child(1) {
+            height: 48px;
             max-width: 960px;
-            width: 100%;
             margin: 0 auto;
             position: relative;
-            max-height: 48px;
-    
-            div:nth-child(1) {
-                height: 48px;
-                max-width: 960px;
-                margin: 0 auto;
-                position: relative;
-                text-align: left;
-    
-                p {
-                    margin: 0;
-                    padding: 0;
-                    width: 19%;
+            text-align: left;
+
+            p {
+                margin: 0;
+                padding: 0;
+                width: 19%;
+            }
+
+            picture {
+                img {
+                    margin-top: 10px;
                 }
-    
-                picture {
-                    img {
-                        margin-top: 10px;
-                        cursor: pointer;
-                    }
-                }
-            }
-    
-            div:nth-child(2) {
-                position: absolute;
-                width: 30px;
-                right: 7.5em;
-                top: 0.2em;
-                height: 30px;
-                content: url('../../icons/location-icon.jpg');
-    
-    
-            }
-    
-            div:nth-child(3) {
-                position: absolute;
-                top: -2px;
-                right: 6em;
-                padding: 10px;
-                font-size: 14px;
-                font-weight: 400;
-                color: var(--color-action-text-primary-default);
-            }
-    
-            div:nth-child(4) {
-                position: absolute;
-                width: 24px;
-                right: 1.7em;
-                top: 0.3em;
-                height: 24px;
-                content: url('../../icons/help.svg');
-            }
-    
-            div:nth-child(5) {
-                position: absolute;
-                top: -2px;
-                right: -0.8em;
-                padding: 10px;
-                font-size: 14px;
-                font-weight: 400;
-                color: var(--color-action-text-primary-default);
             }
         }
     }
+}
+
+body:not(.semi-form, .fdlien) header {
+    .cmp-container {
+        div:nth-child(2) {
+            position: absolute;
+            width: 30px;
+            right: 7.5em;
+            top: 0.2em;
+            height: 30px;
+            content: url('../../icons/location-icon.jpg');
+        }
+    
+        div:nth-child(3) {
+            position: absolute;
+            top: -2px;
+            right: 6em;
+            padding: 10px;
+            font-size: 14px;
+            font-weight: 400;
+            color: var(--color-action-text-primary-default);
+        }
+
+        div:nth-child(4) {
+            position: absolute;
+            width: 24px;
+            right: 1.7em;
+            top: 0.3em;
+            height: 24px;
+            content: url('../../icons/help.svg');
+        }
+
+        div:nth-child(5) {
+            position: absolute;
+            top: -2px;
+            right: -0.8em;
+            padding: 10px;
+            font-size: 14px;
+            font-weight: 400;
+            color: var(--color-action-text-primary-default);
+        }
+    }
+}
 
 /* banner start */
 .cmp-container-wrapper {
     padding: 0 !important;
     border-bottom: none !important;
-    content: url('../icons/header_banner_1400x200.webp');
+    content: url('../icons/header_banner_1400x200.jpg');
+    width: 100% !important;
+}
+
+.semi-form .cmp-container-wrapper {
+    content: '';
+    background-color: var(--color-interface-background-primary);
     width: 100%;
+    background-size: 100% 100%;
+    background-position: center;
+    background-image: url('../icons/bannerDesktopSemi.webp');
+    height: 200px;
 }
 
 /***** mobile large ********/
-@media (320px <=width <=480px) {
+@media (320px <=width <=439px) {
     .cmp-container-wrapper {
-        content: url('../icons/header_banner_320x120.webp');
+        content: url('../icons/header_banner_320x120.jpg');
         width: 100%;
     }
 
@@ -142,8 +153,13 @@ header {
     div p:nth-child(2) {
         display: none;
     }
+
+    .semi-form header { 
+        padding-left: 10px; 
+        .cmp-container { height: 120px; }
+    }
     
-    header{
+    body:not(.semi-form) header{
         div:nth-child(1){
                 text-align: center !important;
             }
@@ -166,11 +182,10 @@ header {
     }
 }
 
-@media (481px <=width <=768px) {
+@media (440px <=width <=767px) {
     .cmp-container-wrapper {
-        content: url('../icons/header_banner_440x140.webp');
+        content: url('../icons/header_banner_440x140.jpg');
         width: 100%;
-        max-width: 100% !important;
     }
 
     div>div>p {
@@ -191,7 +206,14 @@ header {
         }
     }
 
-    header{
+    .semi-form {
+        header { 
+            padding-left: 10px; 
+            .cmp-container { height: 140px; }
+        }
+    }
+    
+    body:not(.semi-form) header{
         .cmp-container{
             div:nth-child(1){
                 text-align: center;
@@ -205,9 +227,9 @@ header {
 }
 
 /******* Tablet *******/
-@media (769px <=width <=991px) {
+@media (768px <=width <=991px) {
     .cmp-container-wrapper {
-        content: url('../icons/header_banner_768x160.webp');
+        content: url('../icons/header_banner_768x160.jpg');
         width: 100%;
         max-width: 100% !important;
     }
@@ -219,8 +241,9 @@ header {
             display: none
         }
     }
-
-    header{
+    .semi-form header { padding-left: 10px; }
+    
+    body:not(.semi-form) header {
         .cmp-container{
             div:nth-child(1){
                 text-align: center;
@@ -229,6 +252,21 @@ header {
             div:nth-child(2), div:nth-child(3),  div:nth-child(4),  div:nth-child(5){
                 display: none;
             }
+        }
+    }
+}
+
+@media (width < 991px) {
+    .semi-form {
+        footer .cmp-container div>div { 
+            text-align: left; 
+            padding-left: 10px;
+        }
+
+        .cmp-container-wrapper {
+            content: '';
+            background-image: url('../icons/bannerTabletSemi.webp');
+            height: 160px;
         }
     }
 }

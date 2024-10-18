@@ -17,10 +17,15 @@ export default async function componentDecorator(fd) {
     const module = await import('./components/rating.js');
     return module.default;
   }
+  if (fd.appliedCssClassNames?.includes('hdfc-accordian-semi') && fieldType === 'panel') {
+    const module = await import('./components/accordion-semi.js');
+    return module.default;
+  }
   if (fd.appliedCssClassNames?.includes('hdfc-accordian')) {
     const module = await import('./components/accordion.js');
     return module.default;
   }
+
   if (fd.appliedCssClassNames?.includes('passwordField')) {
     const module = await import('./components/passwordField.js');
     return module.default;

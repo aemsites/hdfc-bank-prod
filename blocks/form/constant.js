@@ -7,18 +7,20 @@ export const defaultErrorMessages = {
   maxItems: 'Specify a number of items equal to or less than $0.',
   minItems: 'Specify a number of items equal to or greater than $0.',
 };
+
 let submitBaseUrl = '';
 
 const localDev = ['aem.live', 'aem.page', 'localhost', 'hlx.live', 'hlx.page'];
 
 function isLocalDev() {
-  const hostname = location.hostname;
-  return localDev.some(dev => hostname.includes(dev));
+  // eslint-disable-next-line no-restricted-globals
+  const { hostname } = location;
+  return localDev.some((dev) => hostname.includes(dev));
 }
 
 if (isLocalDev()) {
-  submitBaseUrl = 'https://hdfc-dev-04.adobecqms.net';
-} 
+  submitBaseUrl = 'https://applyonline.hdfcbank.com';
+}
 
 export function setSubmitBaseUrl(url) {
   submitBaseUrl = url;

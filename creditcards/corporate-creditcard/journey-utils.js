@@ -31,6 +31,7 @@ function isValidJson(str) {
    * @param {string} visitMode - The visit mode (e.g., "online", "offline").
    * @param {string} journeyAbbreviation - The abbreviation for the journey.
    * @param {string} channel - The channel through which the journey is initiated test cache clear.
+
    * @param {object} globals
    */
 function createJourneyId(visitMode, journeyAbbreviation, channel, globals) {
@@ -86,7 +87,7 @@ const invokeJourneyDropOff = async (state, mobileNumber, globals) => {
    */
 const invokeJourneyDropOffUpdate = async (state, mobileNumber, leadProfileId, journeyId, globals) => {
   const formContextCallbackData = globals.functions.exportData()?.currentFormContext || currentFormContext;
-  const formData = globals.functions.exportData(); 
+  const formData = globals.functions.exportData();
   // temporary_hotfix_radioBtnValues_undefined_issue
   /* storing the radio btn values in current form context */
   if ((state === 'IDCOM_REDIRECTION_INITIATED') || (state === 'CUSTOMER_AADHAR_INIT')) {
@@ -127,7 +128,7 @@ const invokeJourneyDropOffUpdate = async (state, mobileNumber, leadProfileId, jo
       leadProfile: {
         mobileNumber,
         leadProfileId: leadProfileId?.toString(),
-         profile: {
+        profile: {
           dob: formContextCallbackData.dob || formData.form.dobPersonalDetails,
           fullName: formContextCallbackData.fullName || ((formData.form.firstName && formData.form.lastName) ? `${formData.form.firstName} ${formData.form.lastName}` : undefined),
         },
@@ -191,7 +192,6 @@ const invokeJourneyDropOffByParam = async (mobileNumber, leadProfileId, journeyI
   const method = 'POST';
   return fetchJsonResponse(url, journeyJSONObj, method);
 };
-
 
 export {
   invokeJourneyDropOff,

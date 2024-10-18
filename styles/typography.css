@@ -1,12 +1,14 @@
 :root {
   --font-family-default: inter, inter-fallback;
-
+  --font-family-secondary: 'Open Sans', sans-serif;
+  
   /* form--btn */
   --form-button-font-size: 16px;
   --form-button-font-weight: 700;
 
 /* body styles */
   --form-max-width: 960px;
+  --form-max-semi-width: 1280px;
   --form-border-radius: 24px;
 
 /* text field styles */

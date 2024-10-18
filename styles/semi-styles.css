@@ -1,0 +1,1270 @@
+/* stylelint-disable declaration-block-no-redundant-longhand-properties */
+/* stylelint-disable no-descending-specificity */
+.semi-form .section.form-container {
+    max-width: var(--form-max-width) !important;
+}
+
+/* Popup Basic Styling */
+body.semi-form { 
+    font-family: var(--font-family-secondary); 
+    input { font-family: var(--font-family-secondary) !important; }
+
+    main { 
+        background-color: var(--color-interface-background-primary) !important; 
+        min-height: 93vh;
+    }
+    .section.form-container { box-shadow: none; }
+    main .form form { padding-top: 10px !important; }
+}
+
+.semi-form:has(.field-aem-txtselectionpopupwrapper[data-visible="true"], .field-aem-tnctenurewrapper[data-visible="true"], .field-landingconfirmationpopup[data-visible="true"], .field-aem-wrongotppopupwrapper[data-visible="true"], .field-aem-wrongotppopupwrapper2[data-visible="true"], .field-aem-txnssummarypopupwrapper[data-visible="true"]) { overflow: hidden; }
+
+.field-aem-txtselectionpopupwrapper, .field-aem-tnctenurewrapper, .field-landingconfirmationpopup, .field-aem-wrongotppopupwrapper, .field-aem-wrongotppopupwrapper2, .field-aem-txnssummarypopupwrapper {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  background: var(--color-interface-popup-background);
+
+  .field-aem-txtselectionpopup, .field-aem-tnctenure, .field-doyouwishtocontinue, .field-aem-wrongotppopup, .field-aem-txnssummarypopup {
+      margin: auto !important;
+      position: fixed;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      left: 0;
+      overflow: auto;
+      background: var(--color-interface-background-primary);
+      border-radius: 12px;
+  }
+}
+
+.semi-form {
+    .hdfc-accordian-legend { align-content: center;
+
+        .field-expand-btn { margin-top: 3px; }
+
+            button, button:hover {
+            background-color: var(--color-interface-background-quinary) !important;
+            font-size: 0;
+            background-repeat: no-repeat !important;
+            background-size: cover !important;
+            background-position: center !important;
+            width: 31px;
+            height: 14px;
+        }
+    }
+
+    .hdfc-accordian-legend.field-expand-btn button {
+        background-image: url('../icons/Arrow-Collapse.svg') !important;
+    }
+
+    .hdfc-accordian-semi .accordion-collapse { display: none; }
+
+    .hdfc-accordian-semi:has(.accordion-collapse) .field-expand-btn button {
+        transform: rotate(-180deg);
+        margin-bottom: 2px !important;
+    }
+
+    .repeat-wrapper::-webkit-scrollbar {
+        width: 9px !important;
+    }
+      
+    .repeat-wrapper::-webkit-scrollbar-track {
+        background: var(--color-interface-border-primary) !important;
+    }
+    
+    .repeat-wrapper::-webkit-scrollbar-thumb {
+        background: var(--color-action-background-secondary-hover) !important; 
+    }
+    
+    a {
+        text-decoration: underline !important;
+        color: var(--color-interface-background-tertiary) !important;
+    }
+
+    .item-add { display: none; }
+
+    .field-aem-semiwizard {
+        padding: 0 0 50px !important;
+
+        .wizard-button-wrapper { display: none !important; }
+
+        .wizard-menu-items {
+            max-width: 100%;
+            gap: 0;
+            font-size: var(--body-sm-font-size);
+            position: relative;
+            padding-bottom: 10px;
+
+            .wizard-menu-item:not(:last-child) { width: 30%; }
+            .wizard-menu-item:last-child { width: 10%; }
+
+            .wizard-menu-item:last-child::before { content: url('../icons/handImageSmall.png'); }
+
+            .wizard-menu-item::before {
+                display: block;
+                height: 28px;
+                width: 28px;
+                margin-bottom: 10px;
+                background: var(--color-interface-background-primary);
+                border: 1px solid var(--color-interface-border-secondary);
+                position: relative;
+                z-index: 100;
+            }
+            
+            .wizard-menu-active-item {
+                color: var(--color-interface-background-tertiary);
+
+                &::before { 
+                    background-color: var(--form-wizard-number-color); 
+                    border: solid 2px var(--color-interface-background-primary);
+                    box-shadow: 0 0 0 3px var(--color-interface-background-tertiary);
+                }
+            }
+
+            .wizard-menu-item:not(.wizard-menu-active-item) {
+                color: var(--color-input-text-placeholder-disabled);
+                font-weight: var(--font-weight-medium);
+                &::before { color: var(--color-interface-border-secondary); }
+            }
+
+            .wizard-menu-item:not(:last-child)::after {
+              content: '';
+              display: block;
+              height: 3px;
+              width: 27%;
+              background-color: var(--color-interface-border-primary);
+              position: absolute;
+              margin: 0 0 0 28px;
+              top: 16px;
+            }
+
+            .wizard-completed-item {
+                &::before {
+                    content: '';
+                    background: url('../icons/tick-completed-step.svg') center center / 1.5rem 0.8rem no-repeat var(--form-wizard-number-color);
+                }
+
+                &::after { background-color: var(--form-wizard-number-color) !important; }
+            }
+
+            .wizard-menu-active-item.wizard-menu-item:not(:last-child)::after {
+                background-color: var(--color-interface-background-tertiary);
+            }
+        }
+
+        /* Step 1 - Wizard - Login Screen */
+
+        .field-aem-welcometext p {
+            color: var(--color-interface-background-tertiary);
+            font-weight: var(--font-weight-bold);
+            font-size: var(--body-lg-font-size);
+            margin: 0;
+        }
+
+        .field-aem-loginpanel {
+            .panel-wrapper { width: 100%; }
+
+            .text-wrapper {
+                input, input:hover, input:focus-visible {
+                    border-color: transparent transparent var(--color-input-border-default) transparent;
+                    border-radius: 0;
+                    outline: transparent transparent var(--color-input-border-default) transparent;
+                }
+            }
+            
+            .field-aem-countrycode input { 
+                margin-left: 21px; 
+                text-align: right;
+                padding-right: 7px;
+            }
+
+            .field-aem-mobilenum:is([data-active='true'], [data-empty='false']) > label {
+                margin-left: -35px;
+            }
+
+            .field-aem-cardno {
+                input, input:hover, input:focus-visible {
+                    padding-left: 22px;
+                }
+                .field-description p { font-size: var(--body-x-sm-font-size); }
+            }
+        }
+        .field-aem-mobilenum label { margin-left: -35px; }
+
+        .field-mobilepanel:has(.field-aem-mobilenum:is([data-active='true'])), .field-mobilepanel .field-aem-mobilenum input:focus {
+            .field-aem-countrycode input::placeholder { color: var(--label-color) !important; }
+        }
+
+        .field-mobilepanel:has(.field-aem-mobilenum:is([data-empty='true'])) {
+            .field-aem-countrycode input::placeholder { color: transparent !important; }
+        }
+
+        .field-consentpanel { margin-top: 25px;
+            legend {color: var(--color-interface-text-primary); }
+
+            p {
+                margin: 0;
+                font-size: var(--body-sm-font-size);
+            }
+
+            .field-aem-disclaimerflag {
+                justify-self: end;
+            }
+        }
+
+        .field-landingconfirmationpopup {
+            position: fixed;
+            z-index: 99999;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            display: grid;
+            background-color: var(--color-interface-popup-background);
+
+            .field-doyouwishtocontinue {
+                padding: 10px 12px;
+                height: fit-content;
+                max-width: 608px;
+                text-align: center;
+                display: grid;
+
+                p, input { 
+                    color: var(--color-interface-background-tertiary);
+                    font-size: var(--body-md-font-size);
+                    font-weight: var(--font-weight-bold);
+                    margin: 0;
+                }
+
+                .field-confirmationpopupimage img { height: 168px; }
+
+                .field-err-popup-text { 
+                    border-bottom: solid 1px var(--color-interface-text-secondary); 
+                    padding-bottom: 10px;
+                    margin-top: -28px;
+                }
+
+                .button-wrapper { 
+                    height: fit-content; 
+                    margin-top: -16px;
+                }
+
+                button, button:hover {
+                    background-color: var(--color-interface-background-primary) !important;
+                    color: var(--color-interface-background-tertiary) !important;
+                    padding: 0 20px;
+                    height: fit-content;
+                }
+
+                .field-err-popup-buttonconfirm {
+                    justify-self: flex-start;
+                    grid-column: span 6;
+                }
+
+                .field-cross-btn {
+                    justify-content: flex-end;
+                    grid-column: span 6;
+                }
+
+                .field-err-popup-buttonconfirm button { text-align: left; }
+                .field-cross-btn button { text-align: right; }
+            }
+        }
+
+        /* Step 1 - Wizard - OTP Screen */
+        .field-aem-otppanel, .field-aem-otppanelconfirmation {
+            max-width: 400px;
+            margin: 0 auto;
+
+            .field-aem-wrongotppopupwrapper {
+                position: fixed;
+                z-index: 99999;
+                left: 0;
+                top: 0;
+                width: 100%;
+                height: 100%;
+                overflow: auto;
+                display: grid;
+                background-color: var(--color-interface-popup-background);
+
+                .field-aem-wrongotppopup, .plain-text-wrapper, p, input {
+                    margin: 0;
+                    padding: 0 16px;
+                    max-height: fit-content;
+                    max-width: 608px;
+                    text-align: center;
+                    color: var(--color-interface-background-tertiary);
+                    font-size: var(--body-md-font-size);
+                    font-weight: var(--font-weight-bold);
+
+                    p, input { padding: 0; }
+
+                    .field-wrongotppopupimg img {
+                        height: 151px;
+                        width: 142px;
+                    }
+
+                    .field-aem-wrongotppopupbtn { border-top: 1px solid var(--color-interface-text-secondary);
+
+                        button, button:hover {
+                            background-color: var(--color-interface-background-primary) !important;
+                            color: var(--color-interface-background-tertiary) !important;
+                        }
+                    }
+                }
+            }
+
+            .field-aem-otpicon, .field-aem-otpicon2 {
+                margin: 0 auto -25px;
+                width: fit-content;
+            }
+
+            .field-otppanel, .field-aem-otppanel2 {
+                text-align: center;
+
+                .field-otphelptext, .field-aem-otphelptext2 {
+                    display: -webkit-box;
+                    padding-top: 20px;
+                    font-weight: var(--font-weight-bold);
+                    font-size: var(--body-sm-font-size);
+                    color: var(--color-interface-text-primary);
+    
+                    p { 
+                        font-weight: var(--font-weight-bold);
+                        font-size: var(--body-sm-font-size);
+                        margin-right: 5px;
+                    }
+                }
+    
+                > legend b {
+                    margin: 0 auto;
+                    font-weight: var(--font-weight-bold);
+                    font-size: var(--body-xx-lg-font-size);
+                    color: var(--color-interface-background-quaternary);                
+                }
+
+                .field-aem-maxlimitotp, .field-aem-maxlimitotp2 {
+                    margin-top: -20px;
+                    
+                    p{
+                        p{
+                            font-size: var(--body-sm-font-size);
+                            font-weight: var(--font-weight-bold);
+                             color: var(--color-interface-background-tertiary);
+                        }
+                    }
+                }
+                
+                .field-aem-otpresend, .field-aem-otpresend2 {
+                    margin: -4px 0 !important;
+                    width: fit-content;
+
+                    button{
+                        font-size: var(--body-md-font-size);
+                        text-decoration: underline;
+                        background: var(--color-action-text-primary-default);
+                        color: var(--color-action-text-secondary-default);
+                        text-align: left;
+                        height: fit-content;
+                    }
+                    
+                    button:hover{
+                        background: var(--color-interface-background-primary) !important;
+                        color: var(--color-action-text-secondary-default);
+                        text-align: left;
+                    }
+                }
+    
+                legend, b, p { margin-bottom: 0; }
+
+                .field-aem-otpnumber, .field-aem-otpnumber2 {
+                    margin: -14px 0 0 -7px;
+                    position: relative;
+                    z-index: 100;
+
+                    input { 
+                        border-color: transparent transparent var(--color-input-border-default) transparent; 
+                        outline: transparent transparent var(--color-input-border-default) transparent;
+                        border-radius: 0;
+                        margin-bottom: 0 !important;
+                    }
+
+                    input::placeholder {
+                        font-size: medium;
+                    }
+                }
+
+                .field-secondspanel {
+                    display: flex;
+                    flex-direction: row;
+                    margin-top: -19px;
+
+                    .field-wrapper {
+                        width: fit-content;
+
+                        p, input { 
+                            font-size: var(--body-sm-font-size); 
+                            color: var(--color-action-text-tertiary-default);
+                        }
+                    }
+
+                    .field-seconds, .field-seconds2 { 
+                        margin: -14px 0 0 -14px;
+                        
+                        input {
+                            width: 50px;
+                            padding: 0;
+                            margin: 0;
+                            border: none;
+                            pointer-events: none;
+                            font-weight: var(--font-weight-bold);
+                        }
+                    }
+
+                    .field-sectext, .field-sectext2 { margin: 0 0 0 -49px; }
+                }
+            }
+        }
+
+        /* Step 2 - Wizard - Choose Transactions */
+        .field-aem-choosetransactions {
+            .field-aem-txnssummarytext p {
+                font-size: var(--body-sm-font-size);
+                color: var(--color-interface-text-primary);
+                margin: 0;
+            }
+
+            .field-aem-txnssummarypopupwrapper {
+                position: fixed;
+                z-index: 99999;
+                left: 0;
+                top: 0;
+                width: 100%;
+                height: 100%;
+                display: grid;
+                background-color: var(--color-interface-popup-background);
+
+                .field-aem-txnssummarypopup { padding: 25px 16px 10px; }
+
+                .field-aem-txnssummarypopup, .plain-text-wrapper, p, input {
+                    margin: 0;
+                    max-height: fit-content;
+                    max-width: 608px;
+                    text-align: center;
+                    color: var(--color-interface-background-tertiary);
+                    font-size: var(--body-md-font-size);
+                    font-weight: var(--font-weight-bold);
+                    line-height: 18px;
+
+                    p, input { padding: 0; }
+
+                    .field-aem-txnssummaryicon img {
+                        height: 151px;
+                        width: 142px;
+                    }
+
+                    div[class*='field-aem-txnssummarytext'] p {
+                        color: var(--color-interface-text-primary);
+                        margin-top: -8px;
+                    }
+
+                    .field-aem-txnssummaryok { 
+                        border-top: 1px solid var(--color-interface-text-secondary);
+
+                        button, button:hover {
+                            background-color: var(--color-interface-background-primary) !important;
+                            color: var(--color-interface-background-tertiary) !important;
+                        }
+                    }
+                }
+
+                p { text-align: left; }
+            }
+            .field-aem-eligibletxnlabel, .field-aem-txnavailable { border-right: solid 1px var(--color-interface-border-secondary); }
+
+            .field-aem-eligibletxnlabel, field-aem-eligibletxnlabel p, .field-aem-txnavailable, .field-aem-txnavailable p, .field-aem-totalselectedtxt, .field-aem-totalselectedtxt p {
+                margin: 3px 0 0;
+                font-size: var(--body-lg-font-size);
+                font-weight: var(--font-weight-bold);
+                color: var(--color-interface-background-quaternary);
+                align-content: center;
+            }
+    
+            .field-aem-eligibletxnlabel p, .field-aem-txnavailable p {
+                border-right: solid 1px var(--color-interface-border-secondary);
+            }
+    
+            .field-aem-selecttop10txt button, .field-aem-selecttop10txt button:hover {
+                text-align: left;
+                margin-top: -11px;
+                background: var(--color-interface-background-primary) !important;
+                color: var(--color-action-text-secondary-default);
+                height: fit-content;
+            }
+    
+            .field-aem-totalselectedtxt {
+                display: flex;
+                justify-content: flex-end;
+            }
+    
+            .field-aem-totalselectedtxt::before {
+                content: url('../icons/info-icon.svg');
+                align-self: center;
+                margin: 2px 12px 0;
+            }
+    
+            .field-billedtxnfragment .field-aem-choosetransactions, .field-unbilledtxnfragment .field-aem-choosetransactions {
+                gap: 0 !important;
+                margin-top: -17px;
+                border: solid 1px var(--color-interface-border-secondary);
+                border-radius: 16px;
+    
+                .field-aem-txnheaderpanel {
+                    background-color: var(--color-interface-background-quinary);
+                    padding: 9px 25px;
+                    border-radius: 16px 16px 2px 2px;
+                    position: relative;
+    
+                    .field-aem-txnavailable, .field-aem-txnselected input, .field-aem-txnselected {
+                        align-self: center;
+                        padding: 0;
+                        margin: -1px 0 0;
+                        pointer-events: none;
+
+                        p { 
+                            margin: 0; 
+                        }
+                    }
+
+                    .field-aem-txnselected input {
+                        text-align: right;
+                        background-color: var(--color-interface-background-quinary);
+                        font-size: var(--body-x-sm-font-size);
+                    }
+
+                    .field-aem-txnselected, .field-aem-txnselected p { 
+                        margin: 0 !important; 
+                        font-size: var(--body-x-sm-font-size);
+                    }
+    
+                    .field-aem-txnsortdd {
+                        align-content: center;
+                        grid-column: span 3;
+    
+                        select {
+                            margin: 0;
+                            padding: 4px 8px !important;
+                            max-height: 40px;
+                        }
+                    }
+                }
+    
+                .field-aem-txnslist {
+                    >.repeat-wrapper {
+                        overflow-y: auto;
+                        max-height: 211px;
+
+                        > .panel-wrapper {
+                            padding: 0 0 0 25px;
+                            margin-bottom: -5px;
+                        }
+                        .field-aem-txnname { margin-left: -30px; }
+
+                        > .panel-wrapper:has(input[type="checkbox"]:disabled) {
+                            input {
+                                background-color: var(--color-interface-background-primary);
+                                color: var(--color-interface-text-secondary);
+                                opacity: 0.8;
+                            }
+
+                            input[type="checkbox"]:disabled { cursor: not-allowed; }
+                        }
+
+                        input { padding: 0; }
+                    }
+    
+                    .field-wrapper { 
+                        align-self: center;
+                    }
+                    .field-aem-txn-checkbox { grid-column: span 1; }
+    
+                    .plain-text-wrapper, .plain-text-wrapper p, input[type="text"] { 
+                        margin: 0; 
+                        font-size: var(--body-sm-font-size);
+                        font-weight: var(--font-weight-regular);
+                        color: var(--color-interface-text-primary);
+                        pointer-events: none;
+                        border: none;
+                    }
+
+                    .field-billed-txnname { margin: 2px 0 0 -32px; }
+
+                    .field-aem-txndate input, .field-aem-txnamt input {
+                        margin: 0;
+                    }
+                }
+            }
+
+            .field-billedtxnfragment:has(.accordion-collapse) { .field-aem-txnheaderpanel { border-radius: 16px; } }
+            .field-unbilledtxnfragment:has(.accordion-collapse) { .field-aem-txnheaderpanel { border-radius: 16px; } }
+    
+            .field-unbilledtxnfragment {
+                padding-top: 30px;
+            }
+
+            .field-aem-txtselectionpopupwrapper {
+                position: fixed;
+                z-index: 99999;
+                left: 0;
+                top: 0;
+                width: 100%;
+                height: 100%;
+                overflow: auto;
+                display: grid;
+                background-color: var(--color-interface-popup-background);
+
+                .field-aem-txtselectionpopup, .plain-text-wrapper, p, input {
+                    margin: 0;
+                    padding: 0 16px;
+                    max-height: fit-content;
+                    max-width: 608px;
+                    text-align: center;
+                    color: var(--color-interface-background-tertiary);
+                    font-size: var(--body-md-font-size);
+                    font-weight: var(--font-weight-bold);
+
+                    p, input { padding: 0; }
+
+                    .field-aem-txtselectionpopupicon img {
+                        height: 151px;
+                        width: 142px;
+                    }
+
+                    .field-aem-txtselectionconfirmationbutton { border-top: 1px solid var(--color-interface-text-secondary);
+
+                        button, button:hover {
+                            background-color: var(--color-interface-background-primary) !important;
+                            color: var(--color-interface-background-tertiary) !important;
+                        }
+                    }
+                }
+            }
+        }
+
+        /* Step 3 - Wizard - Select Tenure */
+        .field-aem-selecttenure {
+            .field-aem-emidurationlabel p, .field-aem-roi label, .field-aem-tenureselectionheaderpanel .plain-text-wrapper p {
+                margin: 3px 0 0;
+                font-size: var(--body-lg-font-size);
+                font-weight: var(--font-weight-bold);
+                color: var(--color-interface-text-primary) !important;
+            }
+
+            .field-aem-tenureselectionmainpnl {
+                border: solid 1px var(--color-interface-border-secondary);
+                border-radius: 16px;
+
+                .field-aem-tenureselectionheaderpanel {
+                    display: grid;
+                    background-color: var(--color-interface-background-quinary);
+                    border-radius: 16px 16px 2px 2px;
+                    padding: 17px 25px 10px;
+
+                    p { margin: 0; }
+                }
+
+                .field-aem-tenureselectionrepeatablepanel {
+                    padding: 0 0 0 25px;
+                    margin-top: -20px;
+
+                    .field-aem-tenureselection { 
+                        width: fit-content;
+                        grid-column: span 1;
+
+                        .radio-wrapper label { 
+                            padding-left: 35px; 
+                            font-size: var(--body-sm-font-size) !important;
+                            font-weight: var(--font-weight-regular);
+                            color: var(--color-interface-text-primary);
+                            display: none;
+                        }
+                    }
+
+                    .field-wrapper { 
+                        align-self: center; 
+                        display: grid;
+                    }
+
+                    .field-aem-tenureselectionprocessing { grid-column: span 3; }
+
+                    p, input:not([type="radio"]) { 
+                        margin: 0; padding: 0; 
+                        border: none;
+                        font-size: var(--body-sm-font-size);
+                        font-weight: var(--font-weight-regular);
+                        color: var(--color-interface-text-primary);
+                        pointer-events: none;
+                    }
+                }
+            }
+
+            .field-aem-roi {
+                display: grid;
+
+                label { transform: translateY(10px); }
+
+                input { 
+                    text-align: end; margin: 0; padding: 0;
+                    font-weight: var(--font-weight-bold);
+                    font-size: var(--body-x-lg-font-size);
+                    color: var(--color-interface-text-primary);
+                    border: none;
+                    pointer-events: none;
+                }
+            }
+ 
+            .field-rateofinterestperannumvalue { margin-top: -29px;
+
+                input {
+                    margin: 0; border: none;
+                    padding: 0;
+                    text-align: end;
+                    pointer-events: none;
+                }
+            }
+
+            .field-aem-bankassistedtogglelabel p { 
+                margin: 0; 
+                font-size: var(--body-md-font-size); 
+            }
+
+            .field-aem-bankassistedtoggle {
+                grid-column: span 1;
+                margin-top: 0;
+
+                label { 
+                    color: transparent;
+                    width: 46px;
+                }
+            }
+
+            .field-aem-employeeassistancepanel {
+                label { margin-left: 5px;}
+                .drop-down-wrapper label { margin-left: 10px; }
+
+                select, select:focus, input, input:focus, input:disabled, select:disabled {
+                    border-width: 0 0 1px;
+                    border-style: solid;
+                    border-radius: 0 !important;
+                    background-color: var(--color-interface-background-primary);
+                    border-color: transparent transparent var(--color-input-border-default) transparent !important;
+                    outline: none !important;
+                }
+            }
+
+            .field-tncpanelwrapper {
+                display: flex;
+                flex-direction: row;
+
+                .field-aem-tandc {
+                    display: contents;
+                    
+                    label { 
+                        width: fit-content; 
+                        flex-basis: content;
+                    }
+
+                    label p { 
+                        font-size: var(--body-sm-font-size) !important; 
+                        margin: 15px 0 0;
+                    }
+
+                    input { margin: 15px 0 0; }
+                }
+    
+                .field-aem-tncbutton {
+                    width: fit-content;
+                    margin-left: -10px;
+    
+                    button, button:hover {
+                        color: var(--form-paragraph-color);
+                        background: var(--color-interface-background-primary) !important;
+                        font-size: var(--body-sm-font-size);
+                        text-decoration: underline;
+                        font-weight: var(--font-weight-regular);
+                    }
+                }
+            }
+
+            .field-aem-tnctenurewrapper {
+                position: fixed;
+                z-index: 99999;
+                left: 0;
+                top: 0;
+                width: 100%;
+                height: 100%;
+                overflow: auto;
+                display: grid;
+                background-color: var(--color-interface-popup-background);
+
+                .field-aem-tnctenure {
+                    padding: 10px 12px;
+                    height: fit-content;
+                    max-width: 608px;
+                    text-align: center;
+
+                    p, input { 
+                        color: var(--color-interface-background-tertiary);
+                        font-size: var(--body-md-font-size);
+                        font-weight: var(--font-weight-bold);
+                        margin: 0;
+                    }
+
+                    .field-aem-tandctenureicon img { height: 168px; }
+
+                    .field-aem-tandctenuretext { 
+                        border-bottom: solid 1px var(--color-interface-text-secondary); 
+                        padding-bottom: 10px;
+                    }
+
+                    .button-wrapper { height: fit-content; }
+
+                    button, button:hover {
+                        background-color: var(--color-interface-background-primary) !important;
+                        color: var(--color-interface-background-tertiary) !important;
+                        padding: 0;
+                        height: fit-content;
+                    }
+                }
+            }
+
+            .field-aem-tandcmad {
+                margin: -20px 0 0;
+
+                label {
+                    font-size: var(--body-sm-font-size) !important;
+                    margin: 0 0 0 12px;
+                }
+            }
+
+            .field-aem-backlinktenure {
+                text-align: left;
+                margin-top: -13px !important;
+
+                button, button:hover { 
+                    width: fit-content;
+                    background-color: var(--color-interface-background-primary) !important;
+                    color: var(--color-action-background-primary-default);
+                    text-decoration: underline;
+                }
+            }
+
+            .field-aem-wrongotppopupwrapper2 {
+                position: fixed;
+                z-index: 99999;
+                left: 0;
+                top: 0;
+                width: 100%;
+                height: 100%;
+                overflow: auto;
+                display: grid;
+                background-color: var(--color-interface-popup-background);
+
+                .field-aem-wrongotppopup2, .plain-text-wrapper, p, input {
+                    background-color: var(--color-interface-background-primary);
+                    margin: auto;
+                    padding: 0 16px;
+                    height: fit-content;
+                    max-width: 608px;
+                    text-align: center;
+                    color: var(--color-interface-background-tertiary);
+                    font-size: var(--body-md-font-size);
+                    font-weight: var(--font-weight-bold);
+                    border-radius: 16px;
+
+                    p, input { padding: 0; }
+
+                    .field-otperroricon2 img {
+                        height: 151px;
+                        width: 142px;
+                    }
+
+                    .field-aem-wrongotppopupbtn2 { border-top: 1px solid var(--color-interface-text-secondary);
+
+                        button, button:hover {
+                            background-color: var(--color-interface-background-primary) !important;
+                            color: var(--color-interface-background-tertiary) !important;
+                        }
+                    }
+                }
+            }
+        }
+
+        /* Step 4 - Wizard - Success */
+        .field-aem-success {
+            .field-wrapper:not(.field-submitfeedback), input { 
+                text-align: center; 
+                justify-self: center;
+            }
+
+            p, input { 
+                margin: 0; 
+                padding: 0;
+                color: var(--color-interface-text-primary);
+            }
+
+            .field-aem-successresulttextlabel, .field-aem-loanrefnum, .field-aem-loanrefnum p {
+                font-size: var(--body-lg-font-size);
+                font-weight: var(--font-weight-bold);
+            }
+            .field-aem-loanrefnum, .field-aem-amountlabel { margin-top: -13px; }
+            
+            .field-aem-semiamount { margin-top: -16px;
+                
+                input {
+                    font-size: var(--body-xx-lg-font-size);
+                    font-weight: var(--font-weight-extra-bold);
+                    color: var(--color-interface-background-tertiary);
+                    border: none;
+                    pointer-events: none;
+                }
+            }
+
+            .field-aem-amountlabel, .field-aem-amountlabel p, .field-ratinglabel p {
+                font-size: var(--body-sm-font-size);
+            }
+        }
+    }
+
+    /* Step 2 - Wizard - Choose Transactions */
+
+    .field-aem-semiwizard:has(.field-aem-choosetransactions.current-wizard-step) { padding-left: 50px !important; }
+
+    .field-aem-semicreditcarddisplay {
+        position: relative;
+        padding-top: 10px;
+
+        .field-aem-semicreditcardcontent {
+            max-height: 131px;
+
+            .plain-text-wrapper, .plain-text-wrapper p { 
+                color: var(--color-action-text-tertiary-default); 
+                margin: 0;
+            }
+
+            .field-aem-customernamelabel, .field-aem-outstandinglabel, .field-aem-outstandinglabel p .field-aem-customernamelabel p {
+                font-size: var(--body-lg-font-size);
+                font-weight: var(--font-weight-regular);
+            }
+
+            .field-aem-outstandinglabel p {
+                font-size: var(--body-md-font-size);
+                font-weight: var(--font-weight-regular);                
+            }
+
+            .field-aem-outstandingamt, .field-aem-outstandingamt p {
+                font-size: var(--body-lg-font-size);
+                font-weight: var(--font-weight-bold);
+            }
+        }
+
+        .field-aem-cardfacia {
+            justify-self: end;
+            order: 1;
+            
+            img {
+                height: 131px;
+                grid-column: none;
+            }
+        }
+
+        .field-cardfaciacardno, .field-cardfaciacardno p {
+            right: 112px;
+            top: 116px;
+        }
+
+        .field-cardfaciacardname, .field-cardfaciacardname p {
+            top: 127px;
+            left: 79.2%;
+        }
+
+        .field-cardfaciacardno, .field-cardfaciacardno p, .field-cardfaciacardname, .field-cardfaciacardname p {
+            position: absolute;
+            width: max-content;
+            font-size: 7px;
+            font-weight: var(--font-weight-bold);
+        }
+    }
+
+    /* Result Panel */
+    .field-resultpanel {
+        /* Error Screen */
+        .field-errorresultpanelsemi { 
+            text-align: center;
+
+            .field-errormessagetext {
+                background-color: var(--color-interface-background-primary);
+                padding: 30px 0 10px;
+            }
+
+            .field-errormessagetext::before, .field-errormessagetext p::before { display: none; }
+
+            .plain-text-wrapper, .plain-text-wrapper p {
+                color: var(--color-interface-text-primary);
+                font-size: var(--body-lg-font-size);
+                font-weight: var(--font-weight-bold);
+            }
+        }
+    }
+}
+
+/* Tablet view */
+@media (width < 767px) {
+    main .form form { padding-top: 0 !important; }
+
+    .semi-form {
+        .field-aem-semiwizard .field-aem-identifierpanel {
+            .field-mobilepanel { display: grid; 
+                .field-aem-mobilenum label { margin-left: -12px; }
+                
+                .field-aem-countrycode { 
+                    grid-column: span 1; 
+                    
+                    input {
+                        margin-left: 0;
+                        padding: 0;
+                        width: 242%;
+                        text-align: center;
+                    }
+                }
+
+                .field-aem-mobilenum {
+                    grid-column: span 11;
+                }
+            }
+            .field-consentpanel { display: grid; }
+        }
+
+        .field-aem-semiwizard .field-aem-otppanel  {
+            .field-aem-otpicon, .field-aem-otpicon2 { margin: 0 auto !important; }
+
+            .field-otppanel .field-secondspanel {
+                display: grid;
+
+                .field-wrapper { width: 100%; 
+                    p, input { font-size: var(--body-x-sm-font-size); }
+                }
+
+                .field-resendotplabel { 
+                    grid-column: span 10; 
+                    width: fit-content;
+                }
+
+                .field-seconds {
+                    grid-column: span 1;
+                    margin: -14px 0 0 -23px;
+                }
+
+                .field-sectext {
+                    grid-column: span 1;
+                    margin: 1px 0 0 -28px;
+                }
+            }
+        }
+
+        .field-aem-semicreditcarddisplay {
+            .field-aem-cardfacia img { height: 94%; }
+            .field-aem-semicreditcardcontent { padding: 13px 0; }
+
+            .field-cardfaciacardno, .field-cardfaciacardno p {
+                right: auto;
+                top: auto;
+                bottom: 164px;
+                left: 40px;
+            }
+    
+            .field-cardfaciacardname, .field-cardfaciacardname p {
+                right: auto;
+                top: auto;
+                bottom: 148px;
+                left: 40px;
+            }
+        }
+
+        .field-aem-semiwizard:has(.field-aem-choosetransactions.current-wizard-step) {
+            padding-left: 0 !important;
+
+            .field-aem-choosetransactions {
+                .field-aem-txnssummarypopupwrapper {
+                    div[class*='field-aem-txnssummarytext'] p { margin-top: 10px; }
+                }
+
+                .field-aem-transactionsinfopanel {
+                    display: grid;
+
+                    .field-aem-eligibletxnlabel { 
+                        grid-column: span 12; 
+                        border-right: transparent;
+                    }
+
+                    .field-aem-eligibletxnlabel, field-aem-eligibletxnlabel p, .field-aem-txnavailable, .field-aem-txnavailable p, .field-aem-totalselectedtxt, .field-aem-totalselectedtxt p {
+                        font-size: 14px;
+                    }
+
+                    .field-aem-selecttop10txt {
+                        margin-top: 0 !important;
+                        grid-column: span 5;
+                    }
+
+                    .field-aem-totalselectedtxt {
+                        grid-column: span 7;
+                        margin-top: 1px;
+
+                        p { margin-top: -2px; }
+                    }
+                }
+
+                .field-billedtxnfragment, .field-unbilledtxnfragment {
+                    margin-top: 20px;
+
+                    .field-aem-choosetransactions {
+                        .field-aem-txnheaderpanel {
+                            display: grid;
+                            position: relative;
+
+                            .field-aem-txnavailable { grid-column: span 12;
+                                border-right: transparent;
+                                p { border-right: solid 1px transparent; }
+                            }
+
+                            .field-aem-txnselected {
+                                grid-column: span 4;
+                                line-height: 0;
+                                input { margin-left: -16px; }
+                            }
+
+                            .field-aem-txnselected-label {
+                                grid-column: span 8;
+                                p { margin: 0 0 -1px -7px !important; }
+                            }
+
+                            .field-aem-txnsortdd { display: none; }
+
+                            .field-expand-btn { 
+                                margin: -111px -60px 0 !important;
+                                grid-column: span 10;
+                                justify-self: flex-end;
+                             }
+                        }
+
+                        .field-aem-txnslist {
+                            > .repeat-wrapper > .panel-wrapper {
+                                display: grid;
+
+                                .field-aem-txnname { 
+                                    grid-column: span 11; 
+                                    margin-left: 0;
+                                }
+
+                                .field-aem-txnid {
+                                    grid-column: span 2;
+                                    margin: -32px 0 0 -12px;
+                                }
+
+                                .field-aem-txndate {
+                                    grid-column: span 9;
+                                    margin: -32px 0 0 28px;
+                                }
+
+                                .field-aem-txnamt {
+                                    grid-column: span 3;
+                                    margin: -104px 6px 0;
+                                    input { text-align: right; }                               
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        .field-aem-semiwizard {
+            .wizard-menu-items { font-size: var(--body-x-sm-font-size); }
+
+            .field-aem-selecttenure { display: grid;
+            
+                .field-aem-tenureselectionmainpnl{
+                    .field-aem-tenureselectionheaderpanel { 
+                        display: grid !important;
+                        margin-bottom: -10px;
+                        p { font-size: var(--body-x-sm-font-size) !important; }
+                    }
+
+                    .field-aem-tenureselectionrepeatablepanel {
+                        padding: 0 0 0 13px;
+                        margin-top: 0;
+
+                        > .repeat-wrapper .panel-wrapper:nth-child(1) { padding-top: 11px; }
+
+                        > .repeat-wrapper .panel-wrapper {
+                            display: grid !important;
+                            label, input { font-size: var(--body-x-sm-font-size) !important; }
+                            
+                            input[type="radio"] {
+                                width: 18px !important;
+                                height: 18px !important;
+                            }
+                            .radio-wrapper label { padding-left: 15px; }
+                            .field-aem-tenureselection { margin-bottom: 0 !important; }
+                        }
+                    }
+                }
+                .field-rateofinterestperannumvalue { margin-top: -16px; }
+                .field-aem-employeeassistancepanel { padding-top: 10px; }
+                .field-aem-bankassistedtogglelabel { grid-column: span 10; }
+                .field-aem-tncbutton { margin: 0 !important; }
+            }
+
+            .field-aem-success {
+                .field-wrapper { margin-top: 10px; }
+                .rating.hover { justify-content: center; }
+            }
+        }
+
+        .field-aem-otppanelconfirmation .field-aem-otppanel2 {
+            margin-top: 10px;
+            p { margin: 0; }
+            .field-secondspanel { margin-top: 0 !important; }
+        }
+    }
+}
+
+/* Intermediate breakpoints */
+@media (width <= 460px) {
+    .semi-form .field-aem-semiwizard {
+        .field-aem-loginpanel .field-aem-countrycode input { width: 337% !important; }
+        .field-aem-otppanel .field-otppanel .field-otphelptext { display: block; }
+    }
+}
+
+@media (width <= 415px) {
+    .semi-form .field-aem-semiwizard {
+        .field-aem-choosetransactions .field-aem-totalselectedtxt::before { margin: -20px 12px 0; }
+
+        .field-billedtxnfragment, .field-unbilledtxnfragment {
+            .field-aem-txndate, .field-aem-txnamt { grid-column: span 6 !important; }
+            .field-aem-txnamt { margin: -30px 6px 0 !important; }
+        }
+    }
+}
+
+/* Small mobile view */
+@media (width < 350px) {
+    .semi-form .field-aem-otppanel {
+        .field-aem-otpicon, .field-aem-otpicon2 { margin: 0 auto 0 90px !important; }
+    }
+}

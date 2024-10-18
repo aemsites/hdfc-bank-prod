@@ -2,7 +2,7 @@
  * Displays a loader with optional loading text.
  * @param {string} loadingText - The loading text to display (optional).
  */
-import { decryptDataES6, initRestAPIDataSecurityServiceES6, invokeRestAPIWithDataSecurity } from './apiDataSecurity.js';
+import { decryptDataES6, invokeRestAPIWithDataSecurity } from './apiDataSecurity.js';
 
 import { ENV as env } from './constants.js';
 
@@ -69,6 +69,7 @@ async function fetchJsonResponse(url, payload, method, loader = false) {
     if (loader) hideLoaderGif();
     return JSON.parse(decryptedResult);
   } catch (error) {
+    // eslint-disable-next-line no-console
     console.error('Error in fetching JSON response:', error);
     throw error;
   }
@@ -138,6 +139,7 @@ async function fetchIPAResponse(url, payload, method, ipaDuration, ipaTimer, loa
 
     return result;
   } catch (error) {
+    // eslint-disable-next-line no-console
     console.error('Error in fetching IPA response:', error);
     throw error;
   }
@@ -184,6 +186,7 @@ async function getJsonResponse(url, payload, method = 'POST') {
     const decryptedResult = await decryptDataES6(result, responseObj.secret);
     return JSON.parse(decryptedResult);
   } catch (error) {
+    // eslint-disable-next-line no-console
     console.error('Error in fetching JSON response:', error);
     throw error;
   }

@@ -14,7 +14,8 @@
  @import url('./login-page.css');
  @import url('./accordion-pages.css');
  @import url('./header-banner.css');
-
+ @import url('./fd-styles.css');
+ @import url('./semi-styles.css');
 
  :root {
    /* colors */

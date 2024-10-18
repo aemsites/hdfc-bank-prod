@@ -42,13 +42,13 @@ const fetchFiller4 = (mobileMatch, kycStatus, journeyType, kycFillers) => {
     switch (kycStatus) {
       case 'aadhaar':
         // eslint-disable-next-line no-nested-ternary
-         if (journeyType === 'NTB') {
+        if (journeyType === 'NTB') {
           filler4Value = `VKYC${getCurrentDateAndTime(3)}`;
         }
         if (journeyType === 'ETB') {
           filler4Value = (mobileMatch === 'y') ? `NVKYC${getCurrentDateAndTime(3)}` : `VKYC${getCurrentDateAndTime(3)}`;
         }
-        //filler4Value = `${(mobileMatch === 'y') ? 'NVKYC' : 'VKYC'}${getCurrentDateAndTime(3)}`;
+        // filler4Value = `${(mobileMatch === 'y') ? 'NVKYC' : 'VKYC'}${getCurrentDateAndTime(3)}`;
 
         break;
       case 'bioKYC':

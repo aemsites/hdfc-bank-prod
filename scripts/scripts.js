@@ -14,6 +14,31 @@ import {
 
 const LCP_BLOCKS = []; // add your LCP blocks to the list
 
+const FORM_CONSTANT = [
+  {
+    // SEMI
+    formPath: ['semi', 'smart-emi', 'smart emi', 'smart_emi', 'smartemi'],
+    class: 'semi-form',
+    urlKey: ['semi', 'smart-emi', 'smart emi', 'smartemi'],
+    launchScript: {
+      dev: 'https://assets.adobedtm.com/80673311e435/029b16140ccd/launch-94203efd95a9-staging.min.js',
+      prod: 'https://assets.adobedtm.com/80673311e435/029b16140ccd/launch-94203efd95a9-staging.js',
+      loadTime: 0,
+    },
+  },
+  {
+    // CC
+    formPath: ['corporate-credit-card', 'corporate_credit_cards', 'corporate credit cards', 'corporatecreditcard'],
+    urlKey: ['corporate-credit-card', 'corporate_credit_cards', 'corporate credit cards', 'corporatecreditcard'],
+    launchScript: {
+      dev: 'https://assets.adobedtm.com/80673311e435/029b16140ccd/launch-39d52f236cd6.min.js',
+      prod: 'https://assets.adobedtm.com/80673311e435/029b16140ccd/launch-39d52f236cd6.min.js',
+      loadTime: 3600,
+    },
+  },
+];
+const ENV = 'dev'; // take it from common constant to denote
+
 /**
  * Builds hero block and prepends to main in a new section.
  * @param {Element} main The container element
@@ -87,6 +112,14 @@ async function loadEager(doc) {
     if (window.innerWidth >= 900 || sessionStorage.getItem('fonts-loaded')) {
       loadFonts();
     }
+    const pathName = window.location.pathname;
+    FORM_CONSTANT.some((form) => {
+      if (form.formPath.some((el) => pathName.includes(el))) {
+        document.body.classList.add(form.class);
+        return true;
+      }
+      return false;
+    });
   } catch (e) {
     // do nothing
   }
@@ -119,7 +152,14 @@ async function loadLazy(doc) {
 function loadDelayed() {
   // eslint-disable-next-line import/no-cycle
   window.setTimeout(() => import('./delayed.js'), 3000);
-  window.setTimeout(() => loadScript('https://assets.adobedtm.com/80673311e435/029b16140ccd/launch-39d52f236cd6.min.js'), 3600);
+  const pathName = window.location.pathname;
+  FORM_CONSTANT.some((form) => {
+    if (form.urlKey.some((el) => pathName.includes(el))) {
+      window.setTimeout(() => loadScript(form.launchScript[ENV]), form.launchScript.loadTime);
+      return true;
+    }
+    return false;
+  });
   // load anything that can be postponed to the latest here
 }
 

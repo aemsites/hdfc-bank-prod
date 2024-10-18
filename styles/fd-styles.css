@@ -1,0 +1,824 @@
+/* stylelint-disable declaration-block-no-redundant-longhand-properties */
+/* stylelint-disable selector-id-pattern */
+/* stylelint-disable no-descending-specificity */
+
+/* add all fd realted styles */
+main {
+  padding: 0 !important;
+  background-color: var(--color-action-background-secondary-default);
+}
+
+.fdlien .section>div {
+  max-width: max-content;
+  margin: 0 !important;
+}
+
+/* Input box styling */
+.fdlien .field-registeredmobilenumber input, .field-pan input, .field-dateofbirth input:not([placeholder]), .field-countrycode select {
+  font-size: var(--body-lg-font-size) !important;
+  font-weight: var(--font-weight-medium) !important;
+  line-height: 24px !important;
+  letter-spacing: 8px !important;
+  color: var(--color-interface-text-primary) !important;
+}
+
+body.fdlien .form-wrapper {
+  max-width: 100%;
+}
+
+.fdlien main .section.form-container {
+  max-width: var(--form-fd-max-width) !important;
+}
+
+.fdlien header {
+  background: var(--color-interface-fd-background-primary);
+}
+
+.fdlien header>.cmp-container,
+.fdlien header>.cmp-container div:nth-child(1) {
+  max-width: 1160px;
+}
+
+.fdlien header .cmp-container>div:nth-child(n+3) {
+  display: none;
+}
+
+.fdlien header .cmp-container>div:nth-child(2) {
+  position: absolute;
+  width: 140px;
+  right: 0;
+  top: 0.2em;
+  height: 32px;
+  content: url('../icons/safe-secure.svg');
+}
+
+.fdlien:has(.section.cmp-container-container) .section.cmp-container-container {
+  display: none !important;
+}
+
+.fdlien:has(.section.form-container) .section.form-container {
+  box-shadow: none;
+  border-radius: 0;
+  margin: 0 auto !important;
+
+  form {
+      padding: 0 !important;
+      gap: 20px;
+  }
+
+  .fd-form-wrapper {
+      margin-bottom: 40px;
+
+      .field-multiplecustidbanner {
+          background: var(--color-interface-fd-background-secondary) url('../icons/side_bar_banner_multiple_customerid.png') no-repeat bottom center / 440px 649px;
+          min-height: 648px; 
+      }
+
+      .field-bannerimagepanel {
+          background: var(--color-interface-fd-background-secondary) url('../icons/side_bar_banner.png') no-repeat center center / cover;
+          min-height: 648px;
+  
+          /* .field-bannerimagefdlien {
+              background: url('../icons/side_bar_banner.png');
+              display: flex;
+              align-items: flex-end;
+          }
+  
+          .field-bannerimagefdlien picture,
+          .field-bannerimagefdlien img {
+              max-width: 100%;
+              height: 100%;
+          } */
+      }
+
+      .field-loginmainpanel {
+          padding: 40px 40px 7px 20px;
+  
+          .field-loginpanel {
+              width: 100%;
+          }
+  
+          .field-consenttext {
+              border-top: 1px dotted var(--color-interface-border-secondary);
+              padding-top: 15px;
+
+              a { text-decoration: underline; }
+  
+              p p {
+                  font-size: var(--body-fd-sm-font-size);
+              }
+          }
+  
+          .field-mobilepanel {
+              display: grid;
+              max-width: 368px;
+
+              .field-landinglabel { padding-bottom: 10px; }
+  
+              .field-wrapper {
+                  p {
+                      margin: 0;
+                  }
+  
+                  p p {
+                      font-size: var(--body-md-font-size) !important;
+                      font-weight: var(--font-weight-medium);
+                  }
+              }
+  
+              .field-countrycode {
+                  grid-column: span 4;
+                  margin-top: -19px;
+                  align-self: flex-end;
+                  max-width: 108px;
+  
+                  select {
+                      background: url('../icons/india-flag.png') no-repeat 20px center;
+                      border-radius: var(--form-input-border-radius) 0 0 var(--form-input-border-radius) !important;
+                      padding: 0 5px !important;
+                      text-align: right;
+                      margin-top: 0;
+                      letter-spacing: 0 !important;
+                      pointer-events: none;
+  
+                      &:focus{
+                          outline: none;
+                      }
+                  }
+              }
+  
+              .field-registeredmobilenumber {
+                  grid-column: span 8;
+                  margin-left: -22px;
+                  align-self: flex-end;
+  
+                  input {
+                      border-radius: 0 var(--form-input-border-radius) var(--form-input-border-radius) 0;
+                      margin-top: 5px;
+                  }
+
+                  label { margin: 18px 0 0 10px; }
+  
+                  .field-description {
+                      margin: -12px -10px -11px 0;
+                      position: absolute;
+                      left: -38%;
+                  }
+              }
+
+              .field-registeredmobilenumber:is([data-active='true'], [data-empty='false']) > label {
+                  left: -32%;
+              }
+          }
+  
+          .field-stepstofollow {
+              display: grid;
+              background: var(--color-interface-background-quinary);
+              padding: 10px 0 10px 10px;
+              border-radius: 20px;
+              width: 98%;
+              justify-content: center;
+  
+              legend {
+                  padding: 60px 0 0 20px;
+                  font-size: var(--body-fd-xx-lg-font-size);
+                  color: var(--color-interface-text-primary);
+              }
+  
+              fieldset {
+                  padding: 10px;
+                  text-align: center;
+                  display: inline-block;
+  
+                  img {
+                      width: 40px;
+                      height: 40px;
+                      font-size: var(--body-fd-sm-font-size);
+                  }
+  
+                  p:nth-child(1) {
+                      font-size: var(--body-fd-sm-font-size);
+                  }
+  
+                  .plain-text-wrapper {
+                      white-space: normal !important;
+                  }
+              }
+
+              .field-step4panel {
+                  padding-right: 20px;
+              }
+          }
+      }
+
+      .field-identifierpanel {
+          margin: 0 !important;
+          max-width: 368px;
+          .field-pan input { letter-spacing: 9px; }
+  
+          .field-pandobselection {
+              gap: 4px;
+  
+              legend {
+                  font-size: var(--body-md-font-size) !important;
+                  font-weight: var(--font-weight-medium);
+                  margin-right: 24px;
+              }
+  
+              .field-pandobselection {
+                  margin-right: 15px;
+  
+                  label {
+                      font-size: var(--body-sm-font-size) !important;
+                      font-weight: var(--font-weight-medium);
+                  }
+              }
+          }
+
+          .field-dateofbirth, .field-pan { align-self: end; }
+      }
+
+      /* OTP Panel Styling */
+      .field-otppanelwrapper {
+          grid-template-rows: auto auto 270px;
+
+          .field-otppanel {
+              max-width: 100%;
+              grid-template-rows: auto;
+              padding: 40px 40px 0 10px;
+  
+              .field-otppanel { 
+                  text-align: left;
+
+                  .field-otpsubpanel .field-numretries input {
+                      font-size: var(--body-fd-sm-font-size) !important;
+                      letter-spacing: normal !important;
+                      color: var(--color-interface-text-secondary) !important;
+                  }
+              }
+  
+              legend {
+                  b {
+                      color: var(--color-interface-background-quaternary);
+                      font-size: var(--body-fd-xx-lg-font-size);
+                  }
+              }
+  
+              .field-otphelptext { 
+                  margin-top: -60px;
+                  font-size: var(--body-fd-md-font-size);
+                  font-weight: var(--font-weight-bold);
+  
+                  p {
+                      color: var(--color-input-text-primary);
+                      font-size: var(--body-fd-md-font-size);
+                      font-weight: var(--font-weight-regular);
+                  }
+              }
+  
+              .field-otpnumber {
+                  margin: -28px 0 -18px;
+                  width: 80%;
+  
+                  input { 
+                      height: 54px; 
+                      padding: 15px 0;
+                      letter-spacing: 3vw;
+                  }
+              }
+  
+              .field-secondspanel {
+                  display: flex;
+                  flex-direction: row;
+              }
+              
+              .field-resendotplabel { 
+                  margin-top: 12px;
+                  width: fit-content;
+  
+                  p {
+                      font-size: var(--body-fd-sm-font-size);
+                      padding: 0;
+                  }
+              }
+  
+              .field-seconds { 
+                  margin: -1px 0 0 -15px;
+                  width: fit-content;
+  
+                  input[type="number"] {
+                      border: none;
+                      width: 50px;
+                      margin: 0;
+                      padding: 0;
+                      pointer-events: none;
+                      appearance: none;
+                  }
+              }
+  
+              .field-sectext { 
+                  width: fit-content;
+                  margin: 12px 0 0 -54px;
+                  p { font-size: var(--body-fd-sm-font-size); }
+              }
+          }
+      }
+      
+
+      .field-otppanel:has(.field-secondspanel:not([data-visible='false'])) {
+          .field-otpsubpanel {
+              grid-column: span 3;
+          }
+      }
+
+      .field-submitotp {
+          padding: 0 20px 40px;
+          margin-top: 0 !important;
+      }
+
+      /* Button Styling */
+      .button-wrapper {
+          text-align: left;
+      
+          .button {
+              font-size: var(--form-font-size-xs);
+              max-width: 272px;
+              width: 100%;
+          }
+      }
+
+  }    
+}
+
+/* Multiple Customer Id  */
+.fdlien .field-multiplecustidselectionpanel {
+  display: grid !important;
+  padding: 40px 20px 0 15px;
+  grid-template-rows: auto auto 1fr;
+
+  .field-custidproceedlabel p {
+      font-weight: var(--font-weight-extra-bold);
+      color: var(--color-interface-text-primary);
+      font-size: var(--body-fd-xx-lg-font-size);
+      margin-bottom: 10px;
+  }
+
+  .field-multiplecustidrepeatable{
+      border-radius: 16px;
+      border: 1px solid #ccc;
+      padding: 24px;
+      max-height: 160px;
+      max-width: 368px;
+
+      .field-custidlabel p {
+          color: var(--color-interface-text-primary);
+          font-size: var(--body-fd-md-font-size);
+          font-weight: var(--font-weight-regular);
+      }
+
+      .field-multiplecustidselect { 
+          margin-top: 2px; 
+          justify-content: end;
+      }
+
+      .field-maskedaccno {
+          margin-top: -41px;
+
+          input { 
+              border: none;
+              margin: 0;
+              padding: 0;
+          }
+      }
+
+      .field-nooffds {
+          display: grid;
+          grid-template-columns: 85% 15%;
+          align-items: center;
+          background: var(--color-interface-background-quinary);
+          border-radius: 8px;
+          pointer-events: none;
+          margin-top: -14px;
+
+          label { 
+              padding-left: 16px; 
+              color: var(--color-interface-text-secondary);
+              font-size: var(--body-md-font-size);
+          }
+
+          input {
+              margin: 0;
+              padding: 0;
+              text-align: center;
+              border: none;
+              background: var(--color-interface-background-quinary);
+              color: var(--color-interface-text-secondary) !important;
+              font-size: var(--body-md-font-size) !important;
+              letter-spacing: normal !important;
+          }
+      }
+  }    
+}
+
+/* Wizard Screens */
+.fdlien .section.form-container:has(.field-fdbasedcreditcardwizard:not([data-visible='false'])) {
+  width: 95%;
+  margin: 40px auto 0 !important;
+  border-radius: 24px 24px 0 0;
+
+  .wizard-button-wrapper {
+      display: none;
+  }
+}
+
+/* Select FD */
+.fdlien .field-fdbasedcreditcardwizard {
+  border-radius: 24px 24px 0 0;
+  
+  .wizard-menu-items {
+    justify-content: center;
+
+    li:first-child::before {
+      background: url('../icons/Indicator.png') no-repeat center center / 40px 40px;
+      content: '';
+      border: none;
+      vertical-align: bottom;
+    }
+
+    li.wizard-menu-active-item:first-child::before {
+      background: url('../icons/Indicator1-active.png') no-repeat center center / 40px 40px;
+      content: '';
+      border: none;
+      vertical-align: bottom;
+    }
+
+    li.wizard-menu-item:nth-child(2)::before {
+      background: url('../icons/Indicator2.png') no-repeat center center / 40px 40px;
+      content: '';
+      border: none;
+      vertical-align: bottom;
+    }
+
+    li.wizard-menu-item:last-child::before {
+      background: url('../icons/Indicator3.png') no-repeat center center / 40px 40px;
+      content: '';
+      border: none;
+      vertical-align: bottom;
+    }
+  }
+  
+  .field-selectfd {
+      .field-backlinkmultiplecust button {
+          color: var(--color-action-text-secondary-default);
+          background: var(--color-interface-background-primary);
+          font-weight: var(--font-weight-regular);
+          max-width: fit-content !important;
+      }
+
+      div[class*='field-select-fd-subtext'] p, div[class*='field-pleasenotetext'] p, .field-selectfdtncpanel-title p {
+          font-weight: var(--font-weight-regular);
+          font-size: var(--body-md-font-size);
+          color: var(--color-interface-text-secondary);
+          margin: 0;
+      }
+
+      .field-fdselectioninfo {
+          margin-top: -21px;
+
+          .field-customername { 
+              display: flex; 
+              
+              label {
+                  width: max-content;
+                  align-self: center;
+              }
+
+              input {
+                  padding: 0;
+                  margin: 0.5rem 0.4rem;
+                  border: none;
+              }
+
+              label, input {
+                  font: var(--font-family-default);
+                  font-weight: var(--font-weight-bold) !important;
+                  font-size: var(--body-fd-xx-lg-font-size) !important;
+                  color: var(--color-interface-text-primary);
+              }
+          }
+
+          .field-creditlimit {
+              display: grid;
+              grid-template-columns: 204px auto;
+              border: solid 1px var(--color-interface-border-secondary);
+              border-radius: 12px;
+              height: 52px;
+
+              label {
+                  text-align: right;
+                  align-self: center;
+                  justify-self: center;
+              }
+
+              input {
+                  padding: 0;
+                  text-align: center;
+                  margin: 0;
+                  height: 50px;
+                  border-radius: 0 12px 12px 0;
+                  border: none;
+                  background: var(--color-interface-background-quinary);
+                  font-size: var(--body-fd-x-lg-font-size);
+                  font-weight: var(--font-weight-bold);
+                  color: var(--color-interface-text-primary);
+              }
+          }
+
+          .field-select-fd-subtext1 { margin-top: -31px; }
+
+          .field-fdnumberselection {
+              padding: 20px 16px;
+              border: solid 1px var(--color-action-border-primary-default);
+              border-radius: 16px;
+              max-height: 196px;
+              min-width: 263px;
+
+              label {
+                  padding: 0 0 0 12px;
+                  font-size: var(--body-fd-sm-font-size);
+                  font-weight: var(--font-weight-regular);
+              }
+
+              input {
+                  border: none;
+                  font-size: var(--body-fd-md-font-size);
+                  font-weight: var(--font-weight-bold);
+                  color: var(--color-interface-text-quaternary);
+                  text-align: right;
+                  padding: 0;
+                  margin: 0 12px 0 0;
+                  background: var(--color-interface-background-quinary);
+              }
+
+              .field-fdnumber {
+                  margin-top: -7px;
+
+                  label {
+                      padding: 0;
+                      margin-top: -10px;
+                      font-weight: var(--font-weight-bold);
+                      font-size: var(--body-fd-x-lg-font-size);
+                      color: var(--color-interface-text-primary);
+                  }
+
+                  input {
+                      text-align: left;
+                      margin-top: -16px;
+                      font-weight: var(--font-weight-medium);
+                      background-color: var(--color-interface-background-primary);
+                  }
+              }
+
+              .field-fdaccselect { margin-top: 6px; }
+              
+              .field-selectedfdamount {
+                  display: flex;
+                  margin-top: -23px;
+                  border-radius: 8px;
+                  background: var(--color-interface-background-quinary);
+
+                  label { align-self: center; }
+              }
+
+              .field-maturingdate {
+                  display: flex;
+                  margin-top: -33px;
+                  border-radius: 8px;
+                  background: var(--color-interface-background-quinary);
+
+                  label {
+                      width: 90%;
+                      align-self: center;
+                  }
+              }
+          }
+      }
+
+      .field-selectfdtncpanel {
+          padding: 16px;
+          border: solid 1px var(--color-action-border-primary-disabled);
+          border-radius: 12px;
+          background: var(--color-interface-background-quinary);
+
+          .field-selectfdtncpanel-title p {
+              font-size: var(--body-fd-lg-font-size);
+              font-weight: var(--font-weight-medium);
+              line-height: 18px;
+              margin-bottom: -14px;
+              color: var(--color-interface-text-quaternary);
+          }
+
+          .field-pleasenotetext1, .field-pleasenotetext2 {
+              margin-bottom: -20px;
+          }
+      }
+  }
+}
+
+
+/* Error Screens */
+
+.field-errorresultpanel {
+  .button-wrapper.field-ntberrorpage, .button-wrapper.field-tryagainbuttonerrorpanel{
+      text-align: center !important;
+  }
+}
+
+/* Footer */
+header:has(~ .fd-form-wrapper) {
+  background-color: var(--color-interface-fd-background-primary)
+}
+
+.fdlien footer {
+  background: var(--color-interface-fd-background-primary);
+  text-align: center;
+
+  .cmp-container {
+      div:nth-child(1) {
+          text-align: center;
+      }
+  }
+}
+
+/* Error Screen */
+.fdlien .field-resultpanel .field-errorresultpanel .field-errormessagetext {
+  margin: -40px 0 0;
+}
+
+/* For screens more than form width */
+@media (width <1280px) {
+  .fdlien:has(.section.form-container) .section.form-container {
+      margin: 0 !important;
+      width: 100%;
+
+      .field-loginmainpanel {
+          .field-loginpanel {
+              display: grid;
+          }
+      }
+  }
+}
+
+@media (width < 1120px) {    
+  .field-pandobselection {
+      display: grid;
+
+      legend {
+          grid-column: span 12;
+      }
+
+      .field-pandobselection {
+          width: max-content;
+      }
+  }
+}
+
+/* For tablets */
+@media (768px <=width <1280px) {
+  .fdlien .form form {
+      display: block;
+  }
+
+  .fdlien .button-wrapper {
+      text-align: center;
+  }
+
+  .fdlien header>.cmp-container div:nth-child(2) {
+      display: block;
+  }
+
+  .fdlien header>.cmp-container div:nth-child(1) {
+      margin: 0 0 0 10px;
+      text-align: left !important;
+  }
+
+  main .form .field-otppanel {
+      .field-otphelptext { margin-top: -32px !important; }
+      .field-otpnumber { margin: 2px 0 -18px !important; }
+  }
+
+  .fdlien .field-loginmainpanel, main .form .field-otppanel {
+      margin-top: 20px !important;
+      padding: 10px !important;
+  }
+
+  .fdlien:has(.section.form-container) .section.form-container {
+      .fd-form-wrapper{
+          .field-bannerimagepanel {
+              background: var(--color-interface-fd-background-secondary) url('../icons/banner_tablet.png');
+              min-height: 225px;
+          }
+      }    
+
+      .field-loginmainpanel, .field-otppanelwrapper, .field-multiplecustidselectionpanel {
+          margin: 0 auto;
+          max-width: 768px;
+          padding: 0 40px !important;
+      }
+
+      .field-multiplecustidpanel:not([data-visible='false']) { display: block !important; }
+
+      .field-loginmainpanel {
+          .field-registeredmobilenumber {
+              margin: -15px 0 0;
+              max-width: 225px;
+          }
+
+          .field-countrycode select {
+              padding: 0 !important;
+              background-position: 14px center !important;
+          }
+
+          .field-stepstofollow {
+              fieldset {
+                  .plain-text-wrapper {
+                      white-space: normal !important;
+                  }
+              }
+          }
+      }
+
+      .field-fdbasedcreditcardwizard {
+          .field-selectfd {
+              .field-customername { grid-column: span 9; }
+
+              .field-creditlimit { 
+                  grid-column: span 3; 
+                  display: block;
+                  text-align: center;
+                  max-height: 52px;
+
+                  input {
+                      border-width: 0 1px 1px;
+                      border-style: none solid solid;
+                      border-color: transparent var(--color-interface-border-secondary) var(--color-interface-border-secondary);
+                      border-radius: 0 0 12px 12px;
+                      width: 101%;
+                      margin-left: -1px;
+                  }
+              }
+          }
+      }
+  }
+}
+
+/* For mobiles */
+@media (350px <=width <=767px) {
+  .fdlien:has(.section.form-container) .section.form-container {
+      .fd-form-wrapper{
+          .field-bannerimagepanel {
+              background: var(--color-interface-fd-background-secondary) url('../icons/banner_mobile.png');
+              min-height: 225px;
+          }
+      }    
+  }
+
+  .fdlien header>.cmp-container div:nth-child(2) {
+      display: block;
+  }
+
+  .fdlien header>.cmp-container div:nth-child(1) {
+      margin: 0 0 0 10px;
+      text-align: left !important;
+  }
+
+  .fdlien .button-wrapper button {
+      max-width: none !important;
+  }
+
+  .fdlien .field-loginmainpanel, .fdlien .field-otppanelwrapper {
+      max-width: 480px;
+      margin: 0 auto !important;
+      padding: 20px !important;
+  }
+
+  .fdlien .field-loginmainpanel {
+      .field-mobilepanel, .field-identifierpanel { grid-column: span 12 !important; }
+  }
+
+  .field-otppanel { padding: 0 6px 0 2px; 
+
+      .field-otpnumber { 
+          width: 100% !important; 
+          grid-column: span 12 !important;
+      }
+
+      .field-secondspanel, .field-otpresend, .field-otpsubpanel {
+          grid-column: span 6 !important;
+      }
+  }
+
+  .fdlien .field-multiplecustidselectionpanel .field-multiplecustidrepeatable {
+      display: grid;
+  }
+}
