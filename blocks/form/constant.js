@@ -30,14 +30,14 @@ function isLocalDev() {
 
 function isMainProd() {
   // eslint-disable-next-line no-restricted-globals
-  if(typeof location !== 'undefined') {
+  if (typeof location !== 'undefined') {
     const { hostname } = location;
     return mainProd.some((main) => hostname.includes(main));
   }
   return false;
 }
 
-if (isLocalDev() && !isMainProd() ) {
+if (isLocalDev() && !isMainProd()) {
   submitBaseUrl = 'https://applyonlinedev.hdfcbank.com';
 }
 

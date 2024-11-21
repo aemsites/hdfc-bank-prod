@@ -340,6 +340,12 @@ body.fdlien:has(.field-selectkycoptionspanel[data-visible='true']) main {
     min-height: 648px;
   }
 
+  .field-bankloginpanel {
+    input[type='password'] {
+      font-size: var(--body-fd-sm-font-size);
+    }
+  }
+
   .field-bannerimagepanel {
     background: var(--color-interface-fd-background-secondary)
       url('../icons/side_bar_banner.png') no-repeat center center / cover;
@@ -4272,13 +4278,13 @@ body.fdlien:has(.field-selectkycoptionspanel[data-visible='true']) main {
 
     .button-wrapper:nth-child(5) {
       top: 85% !important;
-      left: 70px !important;
+      left: 50% !important;
       text-align: left !important;
     }
 
     .button-wrapper:nth-child(6) {
       top: 85% !important;
-      left: 20px !important;
+      left: 20% !important;
       text-align: right !important;
     }
 
@@ -4489,7 +4495,7 @@ body.fdlien:has(.field-selectkycoptionspanel[data-visible='true']) main {
     }
 
     .field-errorresultpanel:has(.field-ntberrorpage) .field-errresdealerpanel {
-      margin: -120px auto 0 !important;
+      margin: -60px auto 0 !important;
     }
 
     .field-errorresultpanel {
@@ -4507,8 +4513,9 @@ body.fdlien:has(.field-selectkycoptionspanel[data-visible='true']) main {
       }
 
       .field-errormessagetext:not(:has(p)) {
-        padding: 30px 250px 80px 20px !important;
+        padding: 30px 215px 80px 20px !important;
         text-align: left !important;
+        font-size: var(--body-fd-xx-xlg-font-size);
       }
 
       .field-errresdealerpanel {
@@ -4523,13 +4530,13 @@ body.fdlien:has(.field-selectkycoptionspanel[data-visible='true']) main {
       }
 
       .button-wrapper:nth-child(5) {
-        top: 88%;
+        top: 82%;
         left: 40px !important;
         width: 80% !important;
       }
 
       .button-wrapper:nth-child(6) {
-        top: 92%;
+        top: 88%;
         left: 40px !important;
         width: 80% !important;
       }
