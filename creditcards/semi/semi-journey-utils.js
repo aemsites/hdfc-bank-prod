@@ -11,8 +11,58 @@ const {
   CURRENT_FORM_CONTEXT: currentFormContext,
 } = CONSTANT;
 
-const BASEURL = "https://applyonline.hdfcbank.com";
+const BASEURL = 'https://applyonline.hdfcbank.com';
 const urlPath = (path) => `${BASEURL}${path}`;
+
+/* Restructures sanitizedFormData adding URL parameters and missing properties for the journey state:CUSTOMER_ONBOARDING_COMPLETE
+ *
+ * @param {Object} data - The original form data to be restructured.
+ * @param {Object} formContextObject - Contains current form context-specific parameters, such as UTM tracking values.
+ * @param {Object} globals - Global object.
+ * @returns {Object} The restructured form data with additional fields for URL parameters, channel, and audit data.
+ */
+const restructFormData = (data, formContextObject, globals) => {
+  const formData = structuredClone(data);
+  const utmParams = formContextObject?.UTM_PARAMS;
+  const utmChannel = globals.form.aem_semiWizard.aem_selectTenure.aem_employeeAssistancePanel.aem_channel.$value || formContextObject?.UTM_PARAMS?.channel;
+  const allURLParams = {
+    LGCODE: (formData?.smartemi?.LGTSECode || formData?.smartemi?.BranchEmployeeTseLGCode || utmParams?.lgcode) ?? '',
+    DSACODE: (formData?.smartemi?.DSACode || utmParams?.dsacode) ?? '',
+    utm_campaign: utmParams?.utm_campaign ?? '',
+    utm_medium: utmParams?.utm_medium ?? '',
+    ICID: utmParams?.icid ?? '',
+    utmTerm: utmParams?.term ?? '',
+    utm_term: utmParams?.term ?? '',
+    utm_creative: utmParams?.utm_creative ?? '',
+    utm_content: utmParams?.utm_content ?? '',
+    utm_source: utmParams?.utm_source ?? '',
+    BRANCHCODE: (formData?.smartemi?.BranchCode || utmParams?.branchcode) ?? '',
+  };
+  formData.allURLParams = allURLParams ?? '';
+  formData.channel = utmChannel ?? '';
+  formData.DSAName = formData?.smartemi?.DSAName ?? '';
+  formData.BranchName = formData?.smartemi?.BranchName ?? '';
+  formData.BranchCity = formData?.smartemi?.BranchCity ?? '';
+  formData.CardBDRLC1Code = (formData?.smartemi?.LC1Code || utmParams?.lc1) ?? '';
+  formData.NetAmountPayable = formData?.smartemi.SmartEMIAmt ?? '';
+  const auditData = {
+    params: {
+      utm_source: allURLParams?.utm_source,
+      utm_content: allURLParams?.utm_content,
+      utm_campaign: allURLParams?.utm_campaign,
+      utm_medium: allURLParams?.utm_medium,
+    },
+    // clientIPAddress: '',
+  };
+  formData.auditData = auditData;
+  const formSmartEmiData = structuredClone(formData?.smartemi);
+  formSmartEmiData.LC1Code = (formSmartEmiData.LC1Code || utmParams?.lc1) ?? '';
+  formSmartEmiData.LC2Code = (formSmartEmiData.LC1Code || utmParams?.lc2) ?? '';
+  formSmartEmiData.SMCode = (formSmartEmiData.SMCode || utmParams?.smcode) ?? '';
+  formSmartEmiData.LGTSECode = allURLParams?.LGCODE ?? '';
+  formData.smartemi = formSmartEmiData;
+  return formData;
+};
 
 /**
  * For Web returing currentFormContext as defined in variable
@@ -78,6 +128,7 @@ const invokeJourneyDropOffUpdate = async (state, mobileNumber, leadProfileId, jo
     formContext.LoanReferenceNumber = journeyId?.loanNbr;
   }
   const sanitizedFormData = santizedFormDataWithContext(globals, formContext);
+  const formDataSanitized = (state === 'CUSTOMER_ONBOARDING_COMPLETE' || state === 'CUSTOMER_ONBOARDING_FAILED') ? restructFormData(sanitizedFormData, formContext, globals) : sanitizedFormData;
   const journeyJSONObj = {
     RequestPayload: {
       userAgent: (typeof window !== 'undefined') ? window.navigator.userAgent : '',
@@ -92,7 +143,7 @@ const invokeJourneyDropOffUpdate = async (state, mobileNumber, leadProfileId, jo
         journeyStateInfo: [
           {
             state,
-            stateInfo: JSON.stringify(sanitizedFormData),
+            stateInfo: JSON.stringify(formDataSanitized),
             timeinfo: new Date().toISOString(),
           },
         ],
@@ -112,19 +163,18 @@ const invokeJourneyDropOffUpdate = async (state, mobileNumber, leadProfileId, jo
   * @return {PROMISE}
   */
 const invokeJourneyDropOffByParam = async (mobileNumber, leadProfileId, journeyID) => {
-  mobileNumber = mobileNumber?.trim();
   const journeyJSONObj = {
     RequestPayload: {
       leadProfile: {
-        ...(mobileNumber?.length < 10 ? {} :  { mobileNumber }),
+        ...(mobileNumber?.trim()?.length < 10 ? {} : { mobileNumber: mobileNumber?.trim() }),
       },
       journeyInfo: {
         journeyID,
       },
     },
   };
-  
-  const url = urlPath("/content/hdfc_commonforms/api/whatsappdata.json");
+
+  const url = urlPath('/content/hdfc_commonforms/api/whatsappdata.json');
   const method = 'POST';
   return fetchJsonResponse(url, journeyJSONObj, method);
 };

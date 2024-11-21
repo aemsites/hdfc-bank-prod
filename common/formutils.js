@@ -701,6 +701,18 @@ const generateErefNumber = () => {
   return `AD${year}${month}${day}${hours}${minutes}${firstDigitOfSeconds}`;
 };
 
+/**
+ * Masks all characters in a string with 'X', except for the specified number of characters at the end.
+ *
+ * @param {string} str - The input string to be masked.
+ * @param {number} [visibleCount=4] - The number of characters to leave unmasked at the end of the string. Defaults to 4.
+ * @returns {string} - The masked string with only the last `visibleCount` characters visible.
+ */
+const maskString = (str, visibleCount = 4) => {
+  if (str === undefined || str?.length <= visibleCount) return str;
+  return 'X'.repeat(str.length - visibleCount) + str.slice(-visibleCount);
+};
+
 export {
   urlPath,
   maskNumber,
@@ -742,4 +754,5 @@ export {
   createDeepCopyFromBlueprint,
   formatIndian,
   generateErefNumber,
+  maskString,
 };

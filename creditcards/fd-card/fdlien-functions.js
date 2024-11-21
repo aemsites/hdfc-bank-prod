@@ -21,7 +21,6 @@ const { FORM_RUNTIME: formRuntime, CURRENT_FORM_CONTEXT } = CONSTANT;
 const { JOURNEY_NAME, FD_ENDPOINTS } = FD_CONSTANT;
 
 let resendOtpCount = 0;
-// Initialize all Fd Card Journey Context Variables & formRuntime variables.
 CURRENT_FORM_CONTEXT.journeyName = JOURNEY_NAME;
 formRuntime.getOtpLoader = displayLoader;
 formRuntime.otpValLoader = displayLoader;
@@ -31,7 +30,6 @@ formRuntime.ipa = (typeof window !== 'undefined') ? displayLoader : false;
 formRuntime.aadharInit = (typeof window !== 'undefined') ? displayLoader : false;
 
 const validFDPan = (val) => {
-  // FD_CONSTANT.REGEX_PAN?.test(val?.toLocaleUpperCase()); // this one did'nt work properly as expected ,
   // Check if the input length is exactly 10 characters
   if (val?.length !== 10) return false;
 
@@ -295,6 +293,8 @@ const pincodeChangeHandler = (pincode, globals) => {
 const checkModeFd = async (globals) => {
   const formData = globals.functions.exportData();
   const { authmode: idcomVisit, visitType: aadhaarVisit } = formData?.queryParams || {};
+  if (!idcomVisit && !aadhaarVisit) return;
+
   const {
     addressDeclarationPanel,
     resultPanel,
@@ -302,8 +302,6 @@ const checkModeFd = async (globals) => {
     bannerImagePanel,
     loginMainPanel,
   } = globals.form;
-  if (!idcomVisit && !aadhaarVisit) return;
-
   globals.functions.setProperty(bannerImagePanel, { visible: false });
   globals.functions.setProperty(loginMainPanel, { visible: false });
   creditCardSummary(globals);
@@ -357,7 +355,6 @@ const checkModeFd = async (globals) => {
         communicationCity, communicationState, comCityZip,
       } = formData?.currentFormContext?.executeInterfaceRequest?.requestString || {};
 
-      // const isValidAadhaarPincode = { result: true };
       const isValidAadhaarPincode = await pincodeCheck(Zipcode, City, State);
       let aadhaarAddress = '';
       let parsedAadhaarAddress = '';
@@ -432,12 +429,6 @@ const checkModeFd = async (globals) => {
     }
   }
 };
-
-// setTimeout(() => {
-//   if (document && FD_CONSTANT.MODE === 'dev') {
-//     document.querySelector('.field-getotpbutton button').removeAttribute('disabled');
-//   }
-// }, 2000);
 
 export {
   validateLogin,

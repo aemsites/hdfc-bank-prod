@@ -9,7 +9,7 @@ const FLOWS_ERROR_MESSAGES = {
   XFACE_INQ_VP_0003: 'Hey, it seems like you have entered incorrect details. Request you to check & re-enter your last 4 digits of the card.',
   XFACE_E2FA_02: 'Incorrect OTP code. Please try again.', // For this case error message is hardcoded in rule
   XFACE_E2FA_04: 'Oops! you have entered wrong otp too many times please try again later',
-  "1000": "Sorry, this card is not eligible for SmartEMI. You may retry with a different credit card."
+  1000: 'Sorry, this card is not eligible for SmartEMI. You may retry with a different credit card.',
 };
 
 const CHANNELS = {
@@ -17,7 +17,7 @@ const CHANNELS = {
   adobeWhatsApp: 'ADOBE_WHATSAPP',
 };
 
-const ENV = 'dev';
+const ENV = 'prod';
 
 const DEV_URL = 'https://applyonlinedev.hdfcbank.com';
 const PROD_URL = 'https://applyonline.hdfcbank.com';

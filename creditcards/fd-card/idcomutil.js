@@ -56,7 +56,7 @@ const idcomSuccessHandler = async (authCode, redirectUrl) => new Promise((resolv
 });
 
 const idcomRetry = (globals) => {
-  const { idComRequest } = globals.functions.exportData().currentFormContext;
+  const idComRequest = createIdComRequestObj(globals);
   const apiEndPoint = urlPath(ENDPOINTS.fetchAuthCode);
   return fetchJsonResponse(apiEndPoint, idComRequest, 'POST');
 };

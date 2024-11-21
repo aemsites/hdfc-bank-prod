@@ -39,6 +39,7 @@ const createExecuteInterfaceRequest = (payload, source, globals) => {
       fdTenure: `${fd.termMonths} months ${fd.termDays} days`,
       fdAmt: fd.balPrincipal,
     }));
+  globals.functions.setProperty(globals.form.loginMainPanel.selectedFdDetails, { value: JSON.stringify(selectedFdDetails) });
   const addressEditFlag = addressDetails?.mailingAddressToggle?.$value !== 'on';
 
   const getAddress = (addressSource) => ({

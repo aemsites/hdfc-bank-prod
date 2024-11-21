@@ -19,7 +19,7 @@ const fdFiller4 = (userRedirected, mobileMatch = '', selectedKyc = '') => {
       'ETB',
     );
   }
-  return filler4;
+  return filler4 === null ? '' : filler4;
 };
 
 /**

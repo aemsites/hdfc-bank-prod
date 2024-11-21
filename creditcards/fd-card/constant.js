@@ -204,7 +204,7 @@ const ANALYTICS = {
       linkPosition: 'Form',
       pageName: 'Address Details',
       journeyState: 'IDCOM_REDIRECTION_INITIATED',
-      nextPage: '',
+      nextPage: 'docUpload',
     },
     docUpload: {
       type: 'click',

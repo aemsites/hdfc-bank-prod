@@ -65,9 +65,29 @@ async function hashPhoneNumber(phoneNumber) {
     .join('');
 }
 
+const getGender = (gender) => {
+  if (gender === '1') return 'Male';
+  if (gender === '2') return 'Female';
+  if (gender === '3') return 'Others';
+  return 'Unknown';
+};
+
+const getEmploymentType = (type) => {
+  switch (type) {
+    case '1': return 'Salaried';
+    case '2': return 'Self Employed';
+    case '3': return 'Student';
+    case '4': return 'Housewife';
+    case '5': return 'Retired';
+    default: return 'Unknown';
+  }
+};
+
 export {
   setAnalyticClickGenericProps,
   setAnalyticPageLoadProps,
   getValidationMethod,
   hashPhoneNumber,
+  getGender,
+  getEmploymentType,
 };

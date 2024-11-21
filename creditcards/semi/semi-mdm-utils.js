@@ -14,7 +14,18 @@ const UTM_PARAMS = {
   lc1: null, // LC2
   dsacode: null, // DSACODE
   branchcode: null, // BRANCHCODE
+  // all Params value
+  utm_campaign: null,
+  utm_medium: null,
+  icid: null,
+  term: null,
+  utm_creative: null,
+  utm_content: null,
+  content: null,
+  utm_source: null,
 };
+
+const utmCheckKey = ['lgcode', 'smcode', 'lc2', 'lc1', 'dsacode', 'branchcode'];
 
 /**
  * Extracts specific tenure-related fields from the global form object.
@@ -141,6 +152,10 @@ const assistedToggleHandler = async (globals) => {
         globals.functions.setProperty(continueToTQbtn, { enabled: true });
       }
       asstPannelArray?.forEach((pannel) => globals.functions.setProperty(pannel, { visible: false }));
+      // freeze dropdown if utm param have no channel value
+      if (utmCheckKey?.some((key) => UTM_PARAMS[key])) {
+        globals.functions.setProperty(channelDropDown, { enabled: false });
+      }
     }
   } catch (error) {
     // eslint-disable-next-line no-console
@@ -276,6 +291,7 @@ const handleMdmUtmParam = async (globals) => {
     });
     const paramFound = Object.entries(UTM_PARAMS).some(([, val]) => val);
     if (paramFound) {
+      SEMI_CONSTANT.CURRENT_FORM_CONTEXT.UTM_PARAMS = UTM_PARAMS;
       globals.functions.setProperty(globals.form.aem_semiWizard.aem_selectTenure.aem_bankAssistedToggle, { value: 'Yes' });
     }
   }

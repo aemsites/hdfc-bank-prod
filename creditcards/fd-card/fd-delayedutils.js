@@ -35,8 +35,10 @@ const fdCardBoardingSuccess = async (data, stateInfoData) => {
     vkycConfirmationPanel.setAttribute('data-visible', true);
   }
   setArnNumberInResult(stateInfoData.currentFormContext.ARN_NUM, 'refNumPanel', 'referenceNumber');
-  invokeJourneyDropOffUpdate('CUSTOMER_ONBOARDING_COMPLETED', mobileNumber, leadProfileId, journeyId, stateInfoData);
-  sendPageloadEvent('CUSTOMER_ONBOARDING_COMPLETED', stateInfoData, 'Confirmation', 'confirmationPage');
+  invokeJourneyDropOffUpdate('CUSTOMER_ONBOARDING_COMPLETE', mobileNumber, leadProfileId, journeyId, stateInfoData);
+  sendPageloadEvent('CUSTOMER_ONBOARDING_COMPLETE', stateInfoData, 'Confirmation', 'confirmationPage');
+  invokeJourneyDropOffUpdate('CUSTOMER_ONBOARDING_COMPLETE', mobileNumber, leadProfileId, journeyId, stateInfoData);
+  sendPageloadEvent('CUSTOMER_ONBOARDING_COMPLETE', stateInfoData, 'Confirmation', 'confirmationPage');
 };
 
 const fdCardBoardingFailure = (err, stateInfoData) => {
@@ -98,32 +100,45 @@ const finalDapFetchRes = async () => {
 };
 
 const pageRedirected = () => {
-  if (!delayedUtilState.aadharRedirect && !delayedUtilState.idComRedirect) {
+  const { aadharRedirect, idComRedirect, errorCode } = delayedUtilState;
+  const sessionExpiredErrorCode = IDCOM.response.sessionExpired.errorCode;
+  // eslint-disable-next-line no-undef
+  const journeyId = myForm.resolveQualifiedName('$form.runtime.journeyId')._data.$_value;
+  const journeyData = {
+    journeyId,
+    journeyName: ANALYTICS.JOURNEY_NAME,
+  };
+  if (!aadharRedirect && !idComRedirect) {
     const { formLoad } = ANALYTICS.event;
-    const journeyData = {};
-    // eslint-disable-next-line no-underscore-dangle, no-undef
-    journeyData.journeyId = myForm.resolveQualifiedName('$form.runtime.journeyId')._data.$_value;
-    // journeyData.journeyName = CURRENT_FORM_CONTEXT.journeyName;
-    journeyData.journeyName = ANALYTICS.JOURNEY_NAME;
     setTimeout(() => {
       sendFDAnalytics(formLoad.type, formLoad.pageName, {}, formLoad.journeyState, journeyData);
-    }, 2000);
+    }, 1200);
+    return;
   }
-  if (delayedUtilState.idComRedirect && delayedUtilState?.errorCode !== IDCOM.response.sessionExpired.errorCode) {
-    displayLoader();
+  if (aadharRedirect && delayedUtilState.visitType === 'EKYC_AUTH') {
     setTimeout(() => {
-      finalDapFetchRes();
-    }, 5000);
+      sendFDAnalytics('page load', 'Address Details', {}, 'IDCOM_REDIRECTION_INITIATED', journeyData);
+    }, 1200);
+  }
+  if (idComRedirect && errorCode !== sessionExpiredErrorCode) {
+    displayLoader();
+    setTimeout(finalDapFetchRes, 5000);
   }
 };
 
 (() => {
-  const searchParam = new URLSearchParams(window.location.search);
-  delayedUtilState.visitType = searchParam.get('visitType');
-  delayedUtilState.authMode = searchParam.get('authmode');
-  delayedUtilState.journeyId = searchParam.get('journeyId');
-  delayedUtilState.errorCode = searchParam.get('errorCode');
-  delayedUtilState.aadharRedirect = delayedUtilState.visitType && (delayedUtilState.visitType === 'EKYC_AUTH' || delayedUtilState.visitType === 'EKYC_AUTH_FAILED');
-  delayedUtilState.idComRedirect = delayedUtilState.authMode && ((delayedUtilState.authMode === 'DebitCard') || (delayedUtilState.authMode === 'CreditCard')); // debit card or credit card flow
-  pageRedirected();
+  const searchParams = new URLSearchParams(window.location.search);
+
+  setTimeout(() => {
+    const visitType = searchParams.get('visitType');
+    const authMode = searchParams.get('authmode');
+
+    delayedUtilState.visitType = visitType;
+    delayedUtilState.authMode = authMode;
+    delayedUtilState.journeyId = searchParams.get('journeyId');
+    delayedUtilState.errorCode = searchParams.get('errorCode');
+    delayedUtilState.aadharRedirect = visitType === 'EKYC_AUTH' || visitType === 'EKYC_AUTH_FAILED';
+    delayedUtilState.idComRedirect = authMode === 'DebitCard' || authMode === 'CreditCard';
+    pageRedirected();
+  }, 0);
 })();

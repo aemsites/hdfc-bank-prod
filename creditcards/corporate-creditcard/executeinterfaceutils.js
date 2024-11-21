@@ -444,6 +444,7 @@ const executeInterfacePostRedirect = async (source, userRedirected, globals) => 
   const { selectKYCMethodOption1: { aadharEKYCVerification }, selectKYCMethodOption2: { aadharBiometricVerification }, selectKYCMethodOption3: { officiallyValidDocumentsMethod } } = globals.form.corporateCardWizardView.selectKycPanel.selectKYCOptionsPanel;
   const formData = globals.functions.exportData();
   const radioBtnValues = globals.functions.exportData()?.currentFormContext?.radioBtnValues;
+  // eslint-disable-next-line no-unused-vars
   const kycFill = {
     KYC_STATUS:
         ((aadharEKYCVerification.$value || formData?.form?.aadharEKYCVerification || radioBtnValues?.kycMethod?.aadharEKYCVerification) && 'aadhaar')
@@ -451,7 +452,7 @@ const executeInterfacePostRedirect = async (source, userRedirected, globals) => 
         || ((officiallyValidDocumentsMethod.$value || formData?.form?.officiallyValidDocumentsMethod || radioBtnValues?.kycMethod?.officiallyValidDocumentsMethod) && 'OVD')
         || null,
   };
-  if ((source === 'NO_IDCOM_REDIRECTION') && (kycFill.KYC_STATUS === 'bioKYC')) {
+  if ((source === 'NO_IDCOM_REDIRECTION')) {
     requestObj.requestString.authMode = 'OTP';
   }
   requestObj.requestString.comAddressType = comAddressType(globals, userRedirected); // set com address type
