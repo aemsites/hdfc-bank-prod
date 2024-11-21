@@ -1,4 +1,5 @@
 /* eslint-disable no-restricted-globals */
+/* eslint-disable no-restricted-globals */
 export const fileAttachmentText = 'Upload';
 export const dragDropText = 'Drag and Drop To Upload';
 
