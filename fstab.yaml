@@ -1,5 +1,5 @@
 mountpoints:
   /:
-    url: https://hdfc-dev-04.adobecqms.net/bin/franklin.delivery/aemsites/hdfc-bank-prod/stage
+    url: https://hdfc-dev-04.adobecqms.net/bin/franklin.delivery/aemsites/hdfc-bank-prod/main
     type: "markup"
     suffix: ".html"
