@@ -77,7 +77,6 @@ const resumeJourneySuccessHandler = async (payload, globals) => {
         } else {
           percentageOfCompletion = '30%';
         }
-        console.log(percentageOfCompletion);
         const sessionTimeStamp = `Your previous session was saved on ${timeStamp}`;
         document.querySelector('.field-resumejourneytimerinfotext').innerText = sessionTimeStamp;
         globals.functions.setProperty(globals.form.resumeJourneyWrapper, { visible: true });
