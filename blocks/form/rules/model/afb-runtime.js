@@ -3253,7 +3253,11 @@ class Form extends Container {
         this.promises.push(updates);
     }
     async waitForPromises() {
-        await Promise.all(this.promises);
+        let length = 0;
+        while (this.promises.length > length) {
+            length = this.promises.length;
+            await Promise.all(this.promises);
+        }
         this.promises = [];
     }
     _applyDefaultsInModel() {
