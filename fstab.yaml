@@ -1,5 +1,5 @@
 mountpoints:
   /:
-    url: "https://applyonlinedev.hdfcbank.com/bin/franklin.delivery/aemsites/hdfc-bank/main"
+    url: "https://hdfc-dev-04.adobecqms.net/bin/franklin.delivery/aemsites/hdfc-bank/nrenro-cug"
     type: "markup"
     suffix: ".html"
