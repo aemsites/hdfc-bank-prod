@@ -1,0 +1,27 @@
+fieldset.nre-style-accordian {
+    fieldset.panel-wrapper.field-wrapper {
+        fieldset.panel-wrapper.field-wrapper.nre-style-accordian {
+
+            &>.field-wrapper.text-wrapper,
+            &>fieldset.panel-wrapper.field-wrapper,
+            & .plain-text-wrapper.field-wrapper,
+            & .multiline-wrapper.field-wrapper {
+                display: none !important;
+            }
+        }
+    }
+}
+
+fieldset.nre-style-accordian {
+    fieldset.panel-wrapper.field-wrapper {
+        fieldset.panel-wrapper.field-wrapper.nre-style-accordian:has(.accordion-collapse) {
+
+            &>.field-wrapper.text-wrapper,
+            &>fieldset.panel-wrapper.field-wrapper,
+            & .plain-text-wrapper.field-wrapper,
+            & .multiline-wrapper.field-wrapper {
+                display: block !important;
+            }
+        }
+    }
+}
