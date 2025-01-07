@@ -345,7 +345,7 @@ const getMappedTxnPanelData = (transactions) => {
   const txnsData = transactions?.map((txn) => ({
     ...txn,
     aem_Txn_checkBox: txn?.checkbox || txn?.aem_Txn_checkBox,
-    aem_TxnAmt: txn?.amount || txn?.aem_TxnAmt,
+    aem_TxnAmt: (txn?.amount/100) || (txn?.aem_TxnAmt/100),
     aem_TxnDate: txn?.date || txn?.aem_TxnDate,
     aem_TxnID: txn?.id || txn?.aem_TxnID,
     aem_TxnName: txn?.name || txn?.aem_TxnName,
