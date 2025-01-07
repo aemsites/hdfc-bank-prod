@@ -271,29 +271,6 @@ const txnInrFormat = (txnAmt) => {
   return formattedAmt;
 };
 
-/**
- * sets the data for the instance of repetable panel
- *
- * @param {object} globals - gobal form object
- * @param {Object} panel - The panel for unbilled transactions.
- * @param {Object} txn - current tramsaction object
- * @param {number} i - current instance of panel row
- */
-const setData = async (globals, panel, txn, i) => {
-  let enabled = true;
-  if (currentFormContext.totalSelect === 10 && txn?.aem_Txn_checkBox !== 'on') enabled = false;
-  globals.functions.setProperty(panel[i]?.aem_Txn_checkBox, { value: txn?.checkbox || txn?.aem_Txn_checkBox });
-  globals.functions.setProperty(panel[i]?.aem_Txn_checkBox, { enabled });// set the checbox value
-  const paiseAppendAmt = txnInrFormat((txn?.amount || txn?.aem_TxnAmt));
-  const TXN_AMT = `${MISC.rupeesUnicode} ${paiseAppendAmt}`;
-  globals.functions.setProperty(panel[i]?.aem_TxnAmt, { value: TXN_AMT });
-  globals.functions.setProperty(panel[i]?.aem_TxnDate, { value: txn?.date || txn?.aem_TxnDate });
-  globals.functions.setProperty(panel[i]?.aem_TxnID, { value: txn?.id || txn?.aem_TxnID });
-  globals.functions.setProperty(panel[i]?.aem_TxnName, { value: txn?.name || txn?.aem_TxnName });
-  globals.functions.setProperty(panel[i]?.authCode, { value: txn?.AUTH_CODE || txn?.authCode || txn?.authcode });
-  globals.functions.setProperty(panel[i]?.logicMod, { value: txn?.LOGICMOD || txn?.logicMod });
-  globals.functions.setProperty(panel[i]?.aem_txn_type, { value: txn?.type });
-};
 /*
  * Displays card details by updating the UI with response data.
  * @param {object} globals - global object
@@ -321,9 +298,6 @@ const cardDisplay = (globals, response) => {
   imageEl?.childNodes[3].setAttribute('srcset', imagePath);
   imageEl?.childNodes[1].setAttribute('srcset', imagePath);
 };
-
-const DELAY = 0;
-const DELTA_DELAY = 120;
 
 /**
  * sets the data for the instance of repetable panel
@@ -360,6 +334,35 @@ function addTransactions(allTxn, globals) {
 }
 
 /**
+ * sets the data for the instance of repetable panel
+ *
+ * @param {object} globals - gobal form object
+ * @param {Object} panel - The panel for unbilled transactions.
+ * @param {Object} txn - current tramsaction object
+ * @param {number} i - current instance of panel row
+ */
+const getMappedTxnPanelData = (transactions) => {
+  const txnsData = transactions?.map((txn) => ({
+    ...txn,
+    aem_Txn_checkBox: txn?.checkbox || txn?.aem_Txn_checkBox,
+    aem_TxnAmt: txn?.amount || txn?.aem_TxnAmt,
+    aem_TxnDate: txn?.date || txn?.aem_TxnDate,
+    aem_TxnID: txn?.id || txn?.aem_TxnID,
+    aem_TxnName: txn?.name || txn?.aem_TxnName,
+    authCode: txn?.AUTH_CODE || txn?.authCode,
+    logicMod: txn?.LOGICMOD || txn?.logicMod,
+    aem_txn_type: txn?.type || txn?.aem_txn_type,
+  }));
+  return txnsData;
+};
+
+const importTransactions = async (txnList, txnPannel, globals) => {
+  const transactions = txnList || [];
+  const data = getMappedTxnPanelData(transactions);
+  globals.functions.importData(data, txnPannel.$qualifiedName);
+};
+
+/**
  * Combines transaction data and updates the appropriate panels.
  *
  * @param {Array} allTxn - Array of all transactions.
@@ -372,47 +375,10 @@ function addTransactions(allTxn, globals) {
 const setTxnPanelData = async (allTxn, btxn, uBtxn, billedTxnPanel, unBilledTxnPanel, globals) => {
   if (!allTxn?.length) return;
   if (!isNodeEnv) {
-    const processTransactions = allTxn.map((_txn, i) => {
-      const isBilled = i < btxn;
-      let panel = billedTxnPanel;
-      if (btxn !== undefined && unBilledTxnPanel !== undefined) {
-        // Case where we have both billed and unbilled transactions
-        panel = isBilled ? billedTxnPanel : unBilledTxnPanel;
-      }
-      const delay = DELAY + (DELTA_DELAY * i);
-      const panelIndex = isBilled ? i : i - btxn;
-      const processTxnInstances = async () => {
-        if (isBilled && (btxn - 1 >= billedTxnPanel.length)) {
-          /* condition to skip the default txn list data */
-          globals.functions.dispatchEvent(panel, 'addItem');
-        }
-        if (!isBilled && (uBtxn - 1) >= unBilledTxnPanel.length) {
-          /* condition to skip the default txn list data */
-          globals.functions.dispatchEvent(panel, 'addItem');
-        }
-        const txnData = {
-          ..._txn,
-          type: isBilled ? 'BILLED' : 'UNBILLED',
-        };
-        await setData(globals, panel, txnData, panelIndex);
-      };
-      const idleCallFallBack = new Promise((resolve) => {
-        setTimeout(() => {
-          processTxnInstances();
-          resolve();
-        }, delay);
-      });
-      const reqIdleCall = new Promise((resolve) => {
-        requestIdleCallback(() => {
-          processTxnInstances();
-          resolve();
-        }, { timeout: delay });
-      });
-      const processCallBack = ('requestIdleCallback' in window) ? reqIdleCall : idleCallFallBack;
-      return Promise.resolve(processCallBack);
-    });
-    // Wait for all tasks to complete
-    await Promise.allSettled(processTransactions);
+    const billedData = allTxn?.slice(0, btxn)?.map((txn) => ({ ...txn, type: 'BILLED' })) || [];
+    const unbilledData = allTxn?.slice(btxn, allTxn?.length)?.map((txn) => ({ ...txn, type: 'UNBILLED' })) || [];
+    importTransactions(billedData, billedTxnPanel, globals);
+    importTransactions(unbilledData, unBilledTxnPanel, globals);
   } else {
     // special handling for whatsapp flow
     addTransactions(allTxn, globals);
@@ -645,7 +611,7 @@ const tenureOption = (loanOptions, loanAmt) => {
 const getTotalAmount = (globals) => {
   const semiFormData = globals.functions.exportData().smartemi;
   const selectedTxnList = (semiFormData?.aem_billedTxn?.aem_billedTxnSelection?.concat(semiFormData?.aem_unbilledTxn?.aem_unbilledTxnSection))?.filter((txn) => txn.aem_Txn_checkBox === 'on');
-  const totalAmountOfTxn = selectedTxnList?.reduce((prev, acc) => prev + parseFloat(acc.aem_TxnAmt.replace(/[^\d.-]/g, '')), 0);
+  const totalAmountOfTxn = selectedTxnList?.reduce((prev, acc) => prev + parseFloat(String(acc.aem_TxnAmt).replace(/[^\d.-]/g, '')), 0);
   currentFormContext.SMART_EMI_AMOUNT = totalAmountOfTxn;
   return totalAmountOfTxn;
 };
@@ -766,13 +732,10 @@ function sortData(txnType, orderBy, globals) {
   isUserSelection = !isUserSelection;
   if (!txnType) return;
   // orderBy - 0 - amount ; 1 - date
-  const BILLED_FRAG = 'billedTxnFragment';
-  const UNBILLED_FRAG = 'unbilledTxnFragment';
-  const TXN_FRAG = txnType === 'BILLED' ? BILLED_FRAG : UNBILLED_FRAG;
-  const pannel = globals.form.aem_semiWizard.aem_chooseTransactions?.[`${TXN_FRAG}`].aem_chooseTransactions.aem_TxnsList;
-  const billed = globals.functions.exportData().smartemi.aem_billedTxn.aem_billedTxnSelection;
-  const unBilled = globals.functions.exportData().smartemi.aem_unbilledTxn.aem_unbilledTxnSection;
-  const dataTxnList = txnType === 'BILLED' ? billed : unBilled;
+  const pannel = (globals.form.aem_semiWizard.aem_chooseTransactions?.[`${(txnType === 'BILLED') ? 'billedTxnFragment' : 'unbilledTxnFragment'}`].aem_chooseTransactions.aem_TxnsList);
+  const [billedPanel, unbilledPannel] = ['billedTxnFragment', 'unbilledTxnFragment'].map((frag) => (globals.form.aem_semiWizard.aem_chooseTransactions?.[`${frag}`].aem_chooseTransactions.aem_TxnsList));
+  const formContext = getCurrentFormContext(globals);
+  const dataTxnList = pannel?.map((item) => (item?.$value));
   const sortedData = (orderBy === '0') ? sortDataByAmountSymbol(dataTxnList) : sortByDate(dataTxnList);
   const mapSortedDat = sortedData?.map((item) => ({
     ...item,
@@ -782,17 +745,15 @@ function sortData(txnType, orderBy, globals) {
     userPrevSelect.selectedTenMaxTxn = true;
   }
   try {
-    mapSortedDat?.forEach((_data, i) => {
-      const data = {
-        ..._data,
-        type: txnType,
-      };
-      const delay = DELAY + (DELTA_DELAY * i);
-      setTimeout(() => {
-        setData(globals, pannel, data, i);
-      }, delay);
-    });
+    importTransactions(mapSortedDat, pannel, globals);
     userPrevSelect.prevTxnType = 'SORT_BY';
+    const handleDisableAllTxnField = (userPrevSelect.disabledTxnsAtSelectToptenTadMad) || ((formContext.totalSelect === DATA_LIMITS.totalSelectLimit) && (!userPrevSelect.tadMadReachedTopTen));
+    if (handleDisableAllTxnField) {
+      setTimeout(() => {
+        // eslint-disable-next-line no-use-before-define
+        [billedPanel, unbilledPannel].forEach((txnList) => disableAllTxnFields(txnList, globals));
+      }, 0);
+    }
   } catch (error) {
     // eslint-disable-next-line no-console
     console.log(error, 'sortEr');
@@ -883,6 +844,7 @@ const handleTadMadAlert = (globals) => {
           globals.functions.setProperty(foundMatch.aem_Txn_checkBox, { value: 'on', enabled: true });
         });
         if ((availableToSelectInUnbilled + billedSelected) === DATA_LIMITS.totalSelectLimit) { // selected top ten
+          userPrevSelect.disabledTxnsAtSelectToptenTadMad = (availableToSelectInUnbilled + billedSelected) === DATA_LIMITS.totalSelectLimit;
           userPrevSelect.tadMadReachedTopTen = true;
           setTimeout(() => {
             disableCheckBoxes(billedPanel, false, globals);
@@ -905,9 +867,19 @@ const handleTadMadAlert = (globals) => {
 
   const txnList = globals.form.aem_semiWizard.aem_chooseTransactions[`${TXN_FRAG}`].aem_chooseTransactions.aem_TxnsList;
   if (currentFormContext.sumOfbilledTxnOnly > currentFormContext.tadMinusMadValue) {
-    const txnArrayList = txnList?.map((el) => ({ checkVal: el.aem_Txn_checkBox.$value, amtVal: el.aem_TxnAmt.$value, id: el.aem_TxnID.$value }));
-    const findExactSelect = txnList?.find((el) => (prevSelectedRowData?.txnAmt === el.aem_TxnAmt.$value) && (prevSelectedRowData?.txnDate === el.aem_TxnDate.$value) && (prevSelectedRowData?.txnId === el.aem_TxnID.$value) && (prevSelectedRowData?.txnType === el.aem_txn_type.$value));
-    const indexOfPrevSelect = txnArrayList.findIndex((el) => el.id === findExactSelect.aem_TxnID.$value);
+    const txnArrayList = txnList?.map((el) => ({
+      ...el,
+      checkVal: el.aem_Txn_checkBox.$value,
+      amtVal: el.aem_TxnAmt.$value,
+      id: el.aem_TxnID.$value,
+    }));
+    const findExactSelect = txnList?.map((item) => item.$value)?.find((el) => {
+      const {
+        txnAmt, txnId, txnDate, txnType,
+      } = prevSelectedRowData;
+      return (el.id === txnId) && (el.aem_TxnAmt === txnAmt) && (el.aem_TxnDate === txnDate) && (el.aem_txn_type === txnType);
+    });
+    const indexOfPrevSelect = txnArrayList.findIndex((el) => el.id === findExactSelect.aem_TxnID);
     globals.functions.setProperty(txnList[indexOfPrevSelect].aem_Txn_checkBox, { value: undefined });
   }
 };
@@ -919,11 +891,10 @@ const handleTadMadAlert = (globals) => {
  * @returns {object} - returns selectedbilledCount, selectedUnbilledCount, totallySelectedCount
  */
 const getSelectedCount = (globals) => {
-  const billedData = globals.functions.exportData().smartemi.aem_billedTxn.aem_billedTxnSelection;
-  const unbilledData = globals.functions.exportData().smartemi.aem_unbilledTxn.aem_unbilledTxnSection;
-  const totalSelectCount = billedData.concat(unbilledData).filter((el) => el.aem_Txn_checkBox).length;
-  const billedSelectCount = billedData.filter((el) => el.aem_Txn_checkBox)?.length;
-  const unBilledSelectCount = unbilledData.filter((el) => el.aem_Txn_checkBox)?.length;
+  const [billedPanel, unbilledPannel] = ['billedTxnFragment', 'unbilledTxnFragment'].map((frag) => (globals.form.aem_semiWizard.aem_chooseTransactions?.[`${frag}`].aem_chooseTransactions.aem_TxnsList));
+  const totalSelectCount = ((billedPanel.concat(unbilledPannel).map((el) => el.aem_Txn_checkBox.$value).filter((el) => el === 'on')) || [])?.length;
+  const billedSelectCount = (billedPanel.map((el) => el.aem_Txn_checkBox.$value).filter((el) => el === 'on') || [])?.length;
+  const unBilledSelectCount = (unbilledPannel.map((el) => el.aem_Txn_checkBox.$value).filter((el) => el === 'on') || [])?.length;
   currentFormContext.TXN_SELECTED_COUNTS = {
     billed: billedSelectCount,
     unBilled: unBilledSelectCount,
@@ -952,11 +923,8 @@ function txnSelectHandler(checkboxVal, amount, ID, date, txnType, globals) {
   const billedTxnList = globals.form.aem_semiWizard.aem_chooseTransactions.billedTxnFragment.aem_chooseTransactions.aem_TxnsList;
   const unbilledTxnList = globals.form.aem_semiWizard.aem_chooseTransactions.unbilledTxnFragment.aem_chooseTransactions.aem_TxnsList;
   const MAX_SELECT = formContext?.MAX_SELECT;
-  const BILLED_FRAG = 'billedTxnFragment';
-  const UNBILLED_FRAG = 'unbilledTxnFragment';
-  const TXN_FRAG = txnType === 'BILLED' ? BILLED_FRAG : UNBILLED_FRAG;
   const COUNT = getSelectedCount(globals);
-  const txnSelected = globals.form.aem_semiWizard.aem_chooseTransactions?.[`${TXN_FRAG}`].aem_chooseTransactions.aem_txnHeaderPanel.aem_txnSelected;
+  const txnSelected = globals.form.aem_semiWizard.aem_chooseTransactions?.[`${txnType === 'BILLED' ? 'billedTxnFragment' : 'unbilledTxnFragment'}`].aem_chooseTransactions.aem_txnHeaderPanel.aem_txnSelected;
   const SELECTED = `${(txnType === 'BILLED') ? COUNT?.billed : COUNT?.unBilled} Selected`;
   /* popup alert hanldles for the tad-mad values */
   const sumOfbilledTxnOnly = billedTxnList?.filter((el) => {
@@ -969,7 +937,7 @@ function txnSelectHandler(checkboxVal, amount, ID, date, txnType, globals) {
   formContext.sumOfbilledTxnOnly = sumOfbilledTxnOnly;
   if (sumOfbilledTxnOnly) {
     /* popup alert hanldles */
-    const selectedTotalTxn = globals.functions.exportData().smartemi.aem_billedTxn.aem_billedTxnSelection.filter((el) => el.aem_Txn_checkBox).length + globals.functions.exportData().smartemi.aem_unbilledTxn.aem_unbilledTxnSection.filter((el) => el.aem_Txn_checkBox).length;
+    const selectedTotalTxn = COUNT?.total;
     if (sumOfbilledTxnOnly > formContext.tadMinusMadValue) {
       const SELECTED_MAX_BILL = ` Please select Billed Transactions Amount Max up to Rs.${nfObject.format(formContext.tadMinusMadValue)}`;
       globals.functions.setProperty(globals.form.aem_semiWizard.aem_chooseTransactions.aem_txtSelectionPopupWrapper, { visible: true });
@@ -1088,59 +1056,51 @@ const semiWizardSwitch = (source, target, current, globals) => {
  * select top txnlist
 * @param {object} globals - global object
  */
-function selectTopTxn(globals) {
+async function selectTopTxn(globals) {
   selectTopTenFlag = !selectTopTenFlag;
   userPrevSelect.prevTxnType = 'SELECT_TOP';
   const SELECT_TOP_TXN_LIMIT = currentFormContext?.MAX_SELECT;
   const resPayload = currentFormContext.EligibilityResponse;
   const billedResData = resPayload?.ccBilledTxnResponse?.responseString;
   const unBilledResData = resPayload?.ccUnBilledTxnResponse?.responseString;
-  const billedTxnPanel = globals.form.aem_semiWizard.aem_chooseTransactions.billedTxnFragment.aem_chooseTransactions.aem_TxnsList;
-  const unBilledTxnPanel = globals.form.aem_semiWizard.aem_chooseTransactions.unbilledTxnFragment.aem_chooseTransactions.aem_TxnsList;
-  const billed = billedResData?.length ? globals.functions.exportData().smartemi.aem_billedTxn.aem_billedTxnSelection : [];
-  const unBilled = unBilledResData?.length ? globals.functions.exportData().smartemi.aem_unbilledTxn.aem_unbilledTxnSection : [];
+  const {
+    aem_chooseTransactions: {
+      // eslint-disable-next-line camelcase
+      aem_transactionsInfoPanel, aem_txnSelectionContinue,
+      billedTxnFragment: { aem_chooseTransactions: { aem_TxnsList: billedTxnPanel, aem_txnHeaderPanel: { aem_txnSelected: billedTxnSelected } } },
+      unbilledTxnFragment: { aem_chooseTransactions: { aem_TxnsList: unBilledTxnPanel, aem_txnHeaderPanel: { aem_txnSelected: unbilledTxnSelected } } },
+    },
+  } = globals.form.aem_semiWizard;
+  const billed = (billedResData?.length ? getMappedTxnPanelData(billedResData) : [])?.map((item) => ({ ...item, aem_txn_type: 'BILLED' }));
+  const unBilled = (unBilledResData?.length ? getMappedTxnPanelData(unBilledResData) : [])?.map((item) => ({ ...item, aem_txn_type: 'UNBILLED' }));
   const allTxn = billed.concat(unBilled);
   const sortedArr = sortDataByAmountSymbol(allTxn);
   const txnAvailableToSelect = SELECT_TOP_TXN_LIMIT;
   userPrevSelect.txnAvailableToSelectInTopTen = txnAvailableToSelect;
-  const sortedTxnList = sortedArr?.slice(0, txnAvailableToSelect);
-  let unbilledCheckedItems = 0;
-  let billedCheckedItems = 0;
-  const topSelectByAmt = sortedArr?.slice(0, txnAvailableToSelect);
+  const txnDataList = (structuredClone(sortedArr) || [])?.map((txn, i) => ({ ...txn, aem_Txn_checkBox: (i < txnAvailableToSelect) ? 'on' : undefined }));
+  const selectedTxnlist = txnDataList?.filter((list) => (list?.aem_Txn_checkBox === 'on'));
+  const billedList = txnDataList?.filter((txn) => txn?.aem_txn_type === 'BILLED') || [];
+  const unBilledList = txnDataList?.filter((txn) => txn?.aem_txn_type === 'UNBILLED') || [];
   try {
-    [unBilledTxnPanel, billedTxnPanel]?.forEach((pannel) => {
-      pannel?.forEach((txnList) => globals.functions.setProperty(txnList.aem_Txn_checkBox, { enabled: false, value: undefined }));
-    });
-    topSelectByAmt?.forEach((item) => {
-      let pannel;
-      if ((item.aem_txn_type === 'BILLED')) {
-        pannel = billedTxnPanel;
-        billedCheckedItems += 1;
-      } else {
-        pannel = unBilledTxnPanel;
-        unbilledCheckedItems += 1;
-      }
-      const findAllAmtMatch = pannel.filter((el) => (el.aem_TxnAmt.$value === item.aem_TxnAmt) && ((el.aem_TxnDate.$value === item.aem_TxnDate) && (el.aem_TxnName.$value === item.aem_TxnName) && (el.logicMod.$value === item.logicMod)));
-      setTimeout(() => {
-        findAllAmtMatch?.forEach((matchedAmt) => globals.functions.setProperty(matchedAmt.aem_Txn_checkBox, { value: 'on', enabled: true }));
-      }, 1200);
-    });
+    await importTransactions(billedList, billedTxnPanel, globals);
+    await importTransactions(unBilledList, unBilledTxnPanel, globals);
+    [unBilledTxnPanel, billedTxnPanel]?.forEach((txnList) => disableAllTxnFields(txnList, globals));
+    userPrevSelect.gotDisabledAllTxnList = true;
+    const selected = getSelectedCount(globals);
+    globals.functions.setProperty(billedTxnSelected, { value: `${selected?.billed} Selected` });
+    globals.functions.setProperty(unbilledTxnSelected, { value: `${selected?.unBilled} Selected` });
+    currentFormContext.totalSelect = selectedTxnlist?.length;
+    const TOTAL_SELECT = `Total selected ${currentFormContext.totalSelect}/${selectedTxnlist?.length}`;
+    // eslint-disable-next-line camelcase
+    globals.functions.setProperty(aem_transactionsInfoPanel.aem_TotalSelectedTxt, { value: TOTAL_SELECT });
+    globals.functions.setProperty(aem_txnSelectionContinue, { enabled: true });
+    setTimeout(() => {
+      selectTopTenFlag = !selectTopTenFlag;
+    }, 1000);
   } catch (error) {
     // eslint-disable-next-line no-console
     console.log(error, 'error in select top ten');
   }
-
-  const billedTxnSelected = globals.form.aem_semiWizard.aem_chooseTransactions?.billedTxnFragment.aem_chooseTransactions.aem_txnHeaderPanel.aem_txnSelected;
-  const unbilledTxnSelected = globals.form.aem_semiWizard.aem_chooseTransactions?.unbilledTxnFragment.aem_chooseTransactions.aem_txnHeaderPanel.aem_txnSelected;
-  globals.functions.setProperty(billedTxnSelected, { value: `${billedCheckedItems} Selected` });
-  globals.functions.setProperty(unbilledTxnSelected, { value: `${unbilledCheckedItems} Selected` });
-  currentFormContext.totalSelect = sortedTxnList.length;
-  const TOTAL_SELECT = `Total selected ${currentFormContext.totalSelect}/${sortedTxnList.length}`;
-  globals.functions.setProperty(globals.form.aem_semiWizard.aem_chooseTransactions.aem_transactionsInfoPanel.aem_TotalSelectedTxt, { value: TOTAL_SELECT });
-  globals.functions.setProperty(globals.form.aem_semiWizard.aem_chooseTransactions.aem_txnSelectionContinue, { enabled: true });
-  setTimeout(() => {
-    selectTopTenFlag = !selectTopTenFlag;
-  }, 1000);
 }
 
 /**

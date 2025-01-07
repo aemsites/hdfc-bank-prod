@@ -78,13 +78,14 @@ function buildHeroBlock(main) {
   }
 }
 
-if (typeof location !== 'undefined') {
-  const queryString = location.search;
+if ((typeof window !== 'undefined') && (typeof window.location !== 'undefined')) {
+  const queryString = window.location.search;
   const params = new URLSearchParams(queryString);
   const isBlueGreenActive = params.get('isBGPrd');
+  // eslint-disable-next-line no-console
   console.log(isBlueGreenActive);
-  //const isReferrerAllowed = GREEN_ENV.some(hostname => GREEN_ENV.includes(hostname));
-  if( isBlueGreenActive){
+  // const isReferrerAllowed = GREEN_ENV.some(hostname => GREEN_ENV.includes(hostname));
+  if (isBlueGreenActive) {
     setSubmitBaseUrl('https://publish1apsouth1-b80-28920470.prod.hdfc.adobecqms.net');
   }
 }

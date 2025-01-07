@@ -74,10 +74,13 @@ const linkToPopupToggle = (hyperLink, popupOverlay, popupContent, closeBtn = fal
  * Retrieves the value of a query parameter from the URL, case insensitively.
  * This function searches the current URL's query parameters for a parameter that matches the provided name, ignoring case sensitivity.
  * @param {string} param - The name of the query parameter to retrieve.
+* @param {string} [urlQuery=window.location.search] - The query string to search within. Defaults to the current page's query string.
  * @returns {string|null} The value of the query parameter if found; otherwise, `null`.
  */
-const getUrlParamCaseInsensitive = (param) => {
-  const urlSearchParams = new URLSearchParams(window.location.search);
+const getUrlParamCaseInsensitive = (param, urlQuery = window.location.search) => {
+  // Extract the query string if a full URL is passed
+  const queryString = urlQuery.includes('?') ? urlQuery.split('?')[1] : urlQuery;
+  const urlSearchParams = new URLSearchParams(queryString);
   const paramEntry = [...urlSearchParams.entries()]
     .find(([key]) => key.toLowerCase() === param.toLowerCase());
   return paramEntry ? paramEntry[1] : null;

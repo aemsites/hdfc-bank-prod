@@ -14,6 +14,32 @@ const {
 const BASEURL = CONSTANT.BASE_URL;
 const urlPath = (path) => `${BASEURL}${path}`;
 
+/**
+ * Sanitizes the transaction field descriptions in the provided form data by
+ * removing special characters from transaction names in billed and unbilled transactions.
+ *
+ * @param {Object} formData - The santised form data object that contains transaction details.
+ * @returns {Object} - A deep-cloned and sanitized version of the form data object.
+ */
+const santizeFormTxnFieldDesc = (formData) => {
+  const data = structuredClone(formData);
+  const CHARS_REMOVE = '-<>&;"';
+  const removeSplCharacters = (inputString, specialChars) => {
+    // eslint-disable-next-line no-useless-escape
+    const escapedChars = specialChars.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+    const regex = new RegExp(`[${escapedChars}]`, 'g');
+    return inputString.replace(regex, '');
+  };
+  const transactionsMap = (txnAvailable, txnLists) => (txnAvailable ? txnLists?.map((el) => ({
+    ...el,
+    aem_TxnName: `${removeSplCharacters(el.aem_TxnName, CHARS_REMOVE)}`,
+    name: `${removeSplCharacters(el.aem_TxnName, CHARS_REMOVE)}`,
+  })) : undefined);
+  data.smartemi.aem_billedTxn.aem_billedTxnSelection = transactionsMap(data?.currentFormContext?.EligibilityResponse?.ccBilledTxnResponse?.responseString?.length, data.smartemi.aem_billedTxn.aem_billedTxnSelection);
+  data.smartemi.aem_unbilledTxn.aem_unbilledTxnSection = transactionsMap(data?.currentFormContext?.EligibilityResponse?.ccUnBilledTxnResponse?.responseString?.length, data.smartemi.aem_billedTxn.aem_unbilledTxnSection);
+  return data;
+};
+
 /* Restructures sanitizedFormData adding URL parameters and missing properties for the journey state:CUSTOMER_ONBOARDING_COMPLETE
  *
  * @param {Object} data - The original form data to be restructured.
@@ -129,7 +155,7 @@ const invokeJourneyDropOffUpdate = async (state, mobileNumber, leadProfileId, jo
   if (state === 'CUSTOMER_ONBOARDING_COMPLETE') {
     formContext.LoanReferenceNumber = journeyId?.loanNbr;
   }
-  const sanitizedFormData = santizedFormDataWithContext(globals, formContext);
+  const sanitizedFormData = santizeFormTxnFieldDesc(santizedFormDataWithContext(globals, formContext));
   const formDataSanitized = restructFormData(sanitizedFormData, formContext, globals);
   const journeyJSONObj = {
     RequestPayload: {
@@ -137,6 +163,12 @@ const invokeJourneyDropOffUpdate = async (state, mobileNumber, leadProfileId, jo
       leadProfile: {
         mobileNumber,
         leadProfileId: leadProfileId?.toString(),
+        profile: {
+          fullName: formContext?.EligibilityResponse?.address?.name ?? '',
+          dob: '',
+        },
+        emailId: (formContext?.EligibilityResponse?.email?.residenceEmail || formContext?.EligibilityResponse?.email?.officeEmail) ?? '',
+        officialEmailId: (formContext?.EligibilityResponse?.email?.officeEmail || formContext?.EligibilityResponse?.email?.residenceEmail) ?? '',
       },
       formData: {
         channel: CHANNEL,

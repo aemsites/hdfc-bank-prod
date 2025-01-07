@@ -285,9 +285,10 @@ const dsaHandler = async (globals) => {
  * To handle utm parameter
  */
 const handleMdmUtmParam = async (globals) => {
-  if (window !== undefined) {
+  if ((typeof window !== 'undefined') && (typeof document !== 'undefined')) {
+    const queryUrl = window.location.search ? window.location.search : document.referrer;
     Object.entries(UTM_PARAMS).forEach(([key]) => {
-      UTM_PARAMS[key] = getUrlParamCaseInsensitive(key);
+      UTM_PARAMS[key] = getUrlParamCaseInsensitive(key, queryUrl);
     });
     const paramFound = Object.entries(UTM_PARAMS).some(([, val]) => val);
     if (paramFound) {
