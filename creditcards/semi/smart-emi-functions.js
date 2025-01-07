@@ -317,7 +317,7 @@ const getTranactionPanelData = (transactions) => {
       aem_TxnDate: txn?.date || txn?.aem_TxnDate,
       aem_TxnID: txn?.id || txn?.aem_TxnID,
       aem_TxnName: txn?.name || txn?.aem_TxnName,
-      authCode: txn?.AUTH_CODE || txn?.authCode,
+      authCode: txn?.AUTH_CODE || txn?.authCode || txn?.authcode,
       logicMod: txn?.LOGICMOD || txn?.logicMod,
       aem_txn_type: txn?.type,
     };
@@ -349,7 +349,7 @@ const getMappedTxnPanelData = (transactions) => {
     aem_TxnDate: txn?.date || txn?.aem_TxnDate,
     aem_TxnID: txn?.id || txn?.aem_TxnID,
     aem_TxnName: txn?.name || txn?.aem_TxnName,
-    authCode: txn?.AUTH_CODE || txn?.authCode,
+    authCode: txn?.AUTH_CODE || txn?.authCode || txn?.authcode,
     logicMod: txn?.LOGICMOD || txn?.logicMod,
     aem_txn_type: txn?.type || txn?.aem_txn_type,
   }));
