@@ -143,6 +143,15 @@ const addDisableClass = (selectedPanel, exceptions = []) => {
   });
 };
 
+const removeClassFormElement = (selector, classNameToRemove) => {
+  const elem = document.querySelector(selector);
+  if (elem) {
+    elem.classList.remove(classNameToRemove);
+  } else {
+    console.warn(`No element found with the selector: ${selector}`);
+  }
+};
+
 /**
  * Creates a label element and appends it to a specified element in the DOM.
  * @param {string} elementSelector - The CSS selector for the target element.
@@ -457,4 +466,5 @@ export {
   imageClickable,
   updateInnerHtml,
   replaceElementsWith,
+  removeClassFormElement,
 };

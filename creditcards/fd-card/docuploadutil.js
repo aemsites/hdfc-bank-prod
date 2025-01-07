@@ -7,9 +7,8 @@ import {
 } from '../../common/makeRestAPI.js';
 import { urlPath, generateUUID } from '../../common/formutils.js';
 import { CURRENT_FORM_CONTEXT } from '../../common/constants.js';
-import { finalPagePanelVisibility } from './thankyouutil.js';
-import creditCardSummary from './creditcardsumaryutil.js';
 import { FD_ENDPOINTS } from './constant.js';
+import finalDap from './finaldaputils.js';
 /**
  * Creates a FormData payload for document upload.
  *
@@ -181,8 +180,9 @@ const fileUploadUIHandler = () => {
 const docUploadBiometricHandler = (globals) => {
   const { vkycConfirmationPanel } = globals.form.resultPanel.successResultPanel.tqSuccessWrapper;
   globals.functions.setProperty(vkycConfirmationPanel, { visible: false });
-  creditCardSummary(globals);
-  finalPagePanelVisibility('success', CURRENT_FORM_CONTEXT.executeInterfaceResponse.APS_APPL_REF_NUM, globals);
+  finalDap(false, globals);
+  // creditCardSummary(globals);
+  // finalPagePanelVisibility('success', CURRENT_FORM_CONTEXT.executeInterfaceResponse.APS_APPL_REF_NUM, globals);
 };
 
 export {

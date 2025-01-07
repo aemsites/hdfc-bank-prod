@@ -82,7 +82,7 @@ const createDapRequestObj = (userRedirected, globals) => {
 };
 
 const finalDap = (userRedirected, globals) => {
-  const { resultPanel, fdBasedCreditCardWizard } = globals.form;
+  const { resultPanel, fdBasedCreditCardWizard, loginMainPanel } = globals.form;
 
   const apiEndPoint = urlPath(FD_ENDPOINTS.hdfccardsexecutefinaldap);
   const formData = globals.functions.exportData();
@@ -117,7 +117,9 @@ const finalDap = (userRedirected, globals) => {
     },
     errorCallback: (response, globalObj) => {
       globalObj.functions.setProperty(fdBasedCreditCardWizard, { visible: false });
+      globalObj.functions.setProperty(loginMainPanel, { visible: false });
       globalObj.functions.setProperty(resultPanel, { visible: true });
+      globalObj.functions.setProperty(resultPanel.errorResultPanel.errorMessageText, { value: response?.ExecuteFinalDAPResponse?.APS_ERROR_DESC });
       globalObj.functions.setProperty(resultPanel.errorResultPanel, { visible: true });
       invokeJourneyDropOffUpdate('CUSTOMER_FINAL_DAP_FAILURE', mobileNumber, leadProfileId, journeyId, globalObj);
     },

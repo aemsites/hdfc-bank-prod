@@ -55,7 +55,7 @@ export async function fieldChanged(payload, form, generateFormRendition) {
           field.setAttribute('edit-value', currentValue);
           field.setAttribute('display-value', displayValue);
           if (document.activeElement !== field) {
-            field.value = currentValue;
+            field.value = displayValue;
           }
         } else if (fieldType === 'radio-group' || fieldType === 'checkbox-group') {
           field.querySelectorAll(`input[name=${id}]`).forEach((el) => {

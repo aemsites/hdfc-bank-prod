@@ -20,6 +20,7 @@ import {
   setSelectOptions,
   addClassToElement,
   validateTextInput,
+  removeClassFormElement,
 } from '../domutils/domutils.js';
 import {
   FD_ENDPOINTS, NAME_ON_CARD_LENGTH, AGE_LIMIT, ERROR_MSG,
@@ -324,6 +325,7 @@ const validateFdEmail = async (email, globals) => {
     if (emailValid === true) {
       globals.functions.setProperty(globals.form.fdBasedCreditCardWizard.basicDetails.reviewDetailsView.personalDetails.emailID, { valid: true });
     } else {
+      removeClassFormElement('.field-emailid', 'wrapper-disabled');
       globals.functions.markFieldAsInvalid('$form.fdBasedCreditCardWizard.basicDetails.reviewDetailsView.personalDetails.emailID', invalidMsg, { useQualifiedName: true });
     }
   } catch (error) {
