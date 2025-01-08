@@ -341,25 +341,31 @@ function addTransactions(allTxn, globals) {
  * @param {Object} txn - current tramsaction object
  * @param {number} i - current instance of panel row
  */
-const getMappedTxnPanelData = (transactions) => {
-  const txnsData = transactions?.map((txn) => ({
-    ...txn,
-    aem_Txn_checkBox: txn?.checkbox || txn?.aem_Txn_checkBox,
-    aem_TxnAmt: (txn?.amount/100).toFixed(2) || (txn?.aem_TxnAmt/100).toFixed(2),
-   // aem_TxnAmt: `${(txn?.amount / 100) || (txn?.aem_TxnAmt / 100) || 0}.00`,
-    aem_TxnDate: txn?.date || txn?.aem_TxnDate,
-    aem_TxnID: txn?.id || txn?.aem_TxnID,
-    aem_TxnName: txn?.name || txn?.aem_TxnName,
-    authCode: txn?.AUTH_CODE || txn?.authCode || txn?.authcode,
-    logicMod: txn?.LOGICMOD || txn?.logicMod,
-    aem_txn_type: txn?.type || txn?.aem_txn_type,
-  }));
+const getMappedTxnPanelData = (transactions, qualifierName) => {
+  const UNBILL_QNAME = '$form.aem_semiWizard.aem_chooseTransactions.unbilledTxnFragment.aem_chooseTransactions.aem_TxnsList';
+  const txnsData = transactions?.map((txn) => {
+    const amt = (txn?.amount || txn?.aem_TxnAmt);
+    const billAmt = amt;
+    const unbillAmt = (amt / 100).toFixed(2);
+    const TXN_AMT = (qualifierName === UNBILL_QNAME) ? unbillAmt : billAmt;
+    return ({
+      ...txn,
+      aem_Txn_checkBox: txn?.checkbox || txn?.aem_Txn_checkBox,
+      aem_TxnAmt: TXN_AMT,
+      aem_TxnDate: txn?.date || txn?.aem_TxnDate,
+      aem_TxnID: txn?.id || txn?.aem_TxnID,
+      aem_TxnName: txn?.name || txn?.aem_TxnName,
+      authCode: txn?.AUTH_CODE || txn?.authCode || txn?.authcode,
+      logicMod: txn?.LOGICMOD || txn?.logicMod,
+      aem_txn_type: txn?.type || txn?.aem_txn_type,
+    });
+  });
   return txnsData;
 };
 
 const importTransactions = async (txnList, txnPannel, globals) => {
   const transactions = txnList || [];
-  const data = getMappedTxnPanelData(transactions);
+  const data = getMappedTxnPanelData(transactions, txnPannel.$qualifiedName);
   globals.functions.importData(data, txnPannel.$qualifiedName);
 };
 
@@ -1072,8 +1078,8 @@ async function selectTopTxn(globals) {
       unbilledTxnFragment: { aem_chooseTransactions: { aem_TxnsList: unBilledTxnPanel, aem_txnHeaderPanel: { aem_txnSelected: unbilledTxnSelected } } },
     },
   } = globals.form.aem_semiWizard;
-  const billed = (billedResData?.length ? getMappedTxnPanelData(billedResData) : [])?.map((item) => ({ ...item, aem_txn_type: 'BILLED' }));
-  const unBilled = (unBilledResData?.length ? getMappedTxnPanelData(unBilledResData) : [])?.map((item) => ({ ...item, aem_txn_type: 'UNBILLED' }));
+  const billed = (billedResData?.length ? getMappedTxnPanelData(billedResData, billedTxnPanel.$qualifiedName) : [])?.map((item) => ({ ...item, aem_txn_type: 'BILLED' }));
+  const unBilled = (unBilledResData?.length ? getMappedTxnPanelData(unBilledResData, unBilledTxnPanel.$qualifiedName) : [])?.map((item) => ({ ...item, aem_txn_type: 'UNBILLED' }));
   const allTxn = billed.concat(unBilled);
   const sortedArr = sortDataByAmountSymbol(allTxn);
   const txnAvailableToSelect = SELECT_TOP_TXN_LIMIT;
