@@ -433,19 +433,6 @@ const checkModeFd = async (globals) => {
       globals.form.selectKYCOptionsPanel.selectKYCMethodOption1.aadharBiometricVerification._jsonModel.enumNames[0] = 'Aadhaar Biometric KYC at your Doorstep.';
     }
   }
-  else if (aadhaarCancelled) {
-    const {
-      selectKYCMethodOption1, selectKYCMethodOption2, selectKYCMethodOption3,
-    } = selectKYCOptionsPanel;
-    globals.functions.setProperty(selectKYCOptionsPanel, { visible: true });
-    globals.functions.setProperty(selectKYCMethodOption1, { visible: true });
-    globals.functions.setProperty(selectKYCMethodOption2, { visible: false });
-    globals.functions.setProperty(selectKYCMethodOption3, { visible: true });
-    globals.functions.setProperty(selectKYCMethodOption1.aadharBiometricVerification, { value: '0' });
-    if (!formData?.currentFormContext?.isIntegraFlow) {
-      globals.form.selectKYCOptionsPanel.selectKYCMethodOption1.aadharBiometricVerification._jsonModel.enumNames[0] = 'Aadhaar Biometric KYC at your Doorstep.';
-    }
-  }
 };
 
 export {

@@ -365,7 +365,7 @@ const getMappedTxnPanelData = (transactions, qualifierName) => {
 
 const importTransactions = async (txnList, txnPannel, globals) => {
   const transactions = txnList || [];
-  const data = getMappedTxnPanelData(transactions);
+  const data = getMappedTxnPanelData(transactions, txnPannel.$qualifiedName);
   globals.functions.importData(data, txnPannel.$qualifiedName);
 };
 
