@@ -35,7 +35,6 @@ import {
 } from './constant.js';
 import {
   sendAnalytics,
-  sendPageloadEvent,
 } from './analytics.js';
 import { reloadPage } from '../../common/functions.js';
 
@@ -229,7 +228,7 @@ const getaddressForTaxPurpose = async (value) => {
 
 function errorHandling(response, journeyState, globals) {
   setTimeout(() => {
-    sendAnalytics('page load_Error Page', {}, 'CUSTOMER_IDENTITY UNRESOLVED', globals);
+    sendAnalytics('page load_Error Page', {}, journeyState, globals);
   }, 2000);
   const {
     mobileNumber,
@@ -304,11 +303,11 @@ function getNamePart(input, type) {
       break;
 
     case 'middle':
-      result = words[1] || '';
+      result = words.length > 2 ? words[1] : ' ';
       break;
 
     case 'last':
-      result = words.slice(2).join(' ') || '';
+      result = words.length !== 2 ? words.slice(2).join(' ') : words[1];
       break;
 
     default:
@@ -1281,11 +1280,19 @@ const onPageLoadAnalytics = async (globals) => {
   sendAnalytics('page load_Step 1 - Identify Yourself', {}, 'CUSTOMER_IDENTITY_INITIATED', globals);
 };
 
+const onPageLoadErrorAnalytics = async (globals) => {
+  sendAnalytics('page load_Error Page', {}, 'IDCOM_REDIRECT_FAILURE', globals);
+};
+
 setTimeout(() => {
-  if(typeof window !== 'undefined' && typeof _satellite !== 'undefined'){
+  if (typeof window !== 'undefined' && typeof _satellite !== 'undefined') {
     const params = new URLSearchParams(window.location.search);
-    if(params?.get('success') !== 'true' || (params?.get('authmode') !== 'DebitCard' && params?.get('authmode') !== 'NetBanking')){
+    if ((params?.get('success') ?? '') !== 'true' || ((params?.get('authmode') ?? '') !== 'DebitCard' && (params?.get('authmode') ?? '') !== 'NetBanking')) {
+      if (params?.get('success') !== null && params?.get('authmode') !== null) {
+        onPageLoadErrorAnalytics();
+      } else {
       onPageLoadAnalytics();
+      }
     }
   }
 }, 5000);
