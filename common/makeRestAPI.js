@@ -25,6 +25,12 @@ function hideLoaderGif() {
   }
 }
 
+function delay(ms) {
+  return new Promise((resolve) => {
+    setTimeout(() => resolve(), ms);
+  });
+}
+
 /**
 * Initiates an http call with JSON payload to the specified URL using the specified method.
  *
@@ -73,6 +79,60 @@ async function fetchJsonResponse(url, payload, method, loader = false) {
     return JSON.parse(decryptedResult);
   } catch (error) {
   // eslint-disable-next-line no-console
+    console.error('Error in fetching JSON response:', error);
+    throw error;
+  }
+}
+
+/**
+* Initiates an http call with JSON payload to the specified URL using the specified method with delay in returning response.
+ *
+ * @param {string} url - The URL to which the request is sent.
+ * @param {object} payload - The data payload to send with the request.
+ * @param {string} [method='POST'] - The HTTP method to use for the request (default is 'POST').
+ * @param {number} timeInMs - delay time in milli seconds.
+ * @param {boolean} [loader=false] - Whether to hide the loader GIF after the response is received (default is false).
+ * @returns {Promise<*>} - A promise that resolves to the JSON response from the server.
+ */
+
+async function fetchJsonResponseWithDelay(url, payload, method, timeInMs, loader = false) {
+  try {
+    const currentDate = new Date();
+    if (env === 'dev') {
+      return fetch(url, {
+        method,
+        body: payload ? JSON.stringify(payload) : null,
+        mode: 'cors',
+        headers: {
+          'Content-type': 'text/plain',
+          Accept: 'application/json',
+          iat: typeof window !== 'undefined' ? btoa(currentDate.getTime()) : '',
+        },
+      })
+        .then((res) => {
+          if (loader) hideLoaderGif();
+          return res.json();
+        });
+    }
+    const responseObj = await invokeRestAPIWithDataSecurity(payload);
+    const response = await fetch(url, {
+      method,
+      body: responseObj.dataEnc,
+      mode: 'cors',
+      headers: {
+        'Content-type': 'text/plain',
+        Accept: 'text/plain',
+        'X-Enckey': responseObj.keyEnc,
+        'X-Encsecret': responseObj.secretEnc,
+      },
+    });
+    const result = await response.text();
+    const decryptedResult = await decryptDataES6(result, responseObj.secret);
+    const parsedResult = JSON.parse(decryptedResult);
+    await delay(timeInMs);
+    if (loader) hideLoaderGif();
+    return parsedResult;
+  } catch (error) {
     console.error('Error in fetching JSON response:', error);
     throw error;
   }
@@ -296,22 +356,51 @@ const fetchRecursiveResponse = async (
   startTime = Date.now(),
 ) => {
   const getFieldValue = (obj, fieldArray) => fieldArray.reduce((acc, curr) => (acc && acc[curr] !== undefined ? acc[curr] : undefined), obj);
-
+  const encryptionInfo = {};
   try {
+    let body;
+    let headers = {
+      'Content-Type': 'text/plain',
+      Accept: 'application/json',
+    };
+
+    // Handle encryption for non-dev environments
+    if (env !== 'dev') {
+      const responseObj = await invokeRestAPIWithDataSecurity(payload);
+      encryptionInfo.secret = responseObj.secret;
+      body = responseObj.dataEnc;
+      headers = {
+        ...headers,
+        Accept: 'text/plain',
+        'X-Enckey': responseObj.keyEnc,
+        'X-Encsecret': responseObj.secretEnc,
+      };
+    } else {
+      body = payload ? JSON.stringify(payload) : null;
+    }
+
     const res = await fetch(url, {
       method,
-      body: payload ? JSON.stringify(payload) : null,
+      body,
       mode: 'cors',
-      headers: {
-        'Content-Type': 'text/plain',
-        Accept: 'application/json',
-      },
+      headers,
     });
-    const response = await res.json();
+
+    // Handle response based on environment
+    let response;
+    if (env === 'dev') {
+      response = await res.json();
+    } else {
+      const encryptedResponse = await res.text();
+      const decryptedResponse = await decryptDataES6(encryptedResponse, encryptionInfo.secret);
+      response = JSON.parse(decryptedResponse);
+    }
     const fieldValue = getFieldValue(response, fieldName);
+
+    // Check for base case conditions
     switch (source) {
       case 'ipa':
-        if ((fieldValue && fieldValue !== '' && fieldValue !== 'null' && fieldValue !== 'undefined' && fieldValue?.length !== 0)) {
+        if (fieldValue && fieldValue !== '' && fieldValue !== 'null' && fieldValue !== 'undefined' && fieldValue?.length !== 0) {
           if (loader) hideLoaderGif();
           return response;
         }
@@ -323,21 +412,35 @@ const fetchRecursiveResponse = async (
         }
         break;
       default:
+        break;
     }
 
+    // Check if the timeout has been reached
     const elapsedTime = (Date.now() - startTime) / 1000;
     if (elapsedTime >= duration) {
       if (loader) hideLoaderGif();
       return response;
     }
 
+    // Wait for the specified timer duration before the next recursive call
     await new Promise((resolve) => {
       setTimeout(() => {
         resolve();
       }, timer * 1000);
     });
 
-    return await fetchRecursiveResponse(source, url, payload, method, duration, timer, fieldName, loader, startTime);
+    // Recursive call with updated parameters
+    return await fetchRecursiveResponse(
+      source,
+      url,
+      payload,
+      method,
+      duration,
+      timer,
+      fieldName,
+      loader,
+      startTime,
+    );
   } catch (error) {
     if (loader) hideLoaderGif();
     console.error('Error fetching data:', error);
@@ -355,4 +458,5 @@ export {
   fetchIPAResponse,
   chainedFetchAsyncCall,
   fetchRecursiveResponse,
+  fetchJsonResponseWithDelay,
 };
