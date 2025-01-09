@@ -87,21 +87,7 @@ const invokeJourneyDropOffByJourneyId = async (journeyID) => {
   };
   const url = urlPath(ENDPOINTS.journeyDropOffParam);
   const method = 'POST';
-  try {
-    const res = await fetch(url, {
-      method,
-      body: JSON.stringify(journeyJSONObj),
-      mode: 'cors',
-      headers: {
-        'Content-type': 'text/plain',
-        Accept: 'application/json',
-      },
-    });
-    const data = await res.json();
-    return data;
-  } catch (error) {
-    return error;
-  }
+  return fetchJsonResponse(url, journeyJSONObj, method);
 };
 export {
   invokeJourneyDropOff,
