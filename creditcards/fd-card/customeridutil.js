@@ -1,7 +1,7 @@
 /* eslint-disable no-underscore-dangle */
 import { CURRENT_FORM_CONTEXT } from '../../common/constants.js';
 import { FD_ENDPOINTS } from './constant.js';
-import { fetchJsonResponse, fetchRecursiveResponse } from '../../common/makeRestAPI.js';
+import { fetchJsonResponseWithDelay, fetchRecursiveResponse } from '../../common/makeRestAPI.js';
 import { dateFormat, urlPath } from '../../common/formutils.js';
 import { invokeResumeJourneyApi } from './fd-resumejourney.js';
 
@@ -55,7 +55,7 @@ const fetchCustomerId = (mobileNumber, pan, dob, response, globals) => {
 const fetchReferenceId = (mobileNumber, pan, dob, jwtToken, globals) => {
   const dateOfBirth = globals?.form?.loginMainPanel?.loginPanel?.identifierPanel?.dateOfBirth?._data?.$_value || '';
   const payload = createPayload(mobileNumber, pan, dateOfBirth, jwtToken);
-  return fetchJsonResponse(urlPath(FD_ENDPOINTS.hdfccardsgetrefidfdcc), payload, 'POST', false);
+  return fetchJsonResponseWithDelay(urlPath(FD_ENDPOINTS.hdfccardsgetrefidfdcc), payload, 'POST', 1000, false);
 };
 
 const updateData = (globals, customerData, panel) => {
