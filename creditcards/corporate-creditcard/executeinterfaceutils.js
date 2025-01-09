@@ -160,7 +160,7 @@ const createExecuteInterfaceRequestObj = (globals) => {
       communicationAddress1: currentAddress.address1,
       communicationAddress2: currentAddress.address2,
       communicationCity: currentAddress.city,
-      dateOfBirth: formatDate(personalDetails.dobPersonalDetails.$value),
+      dateOfBirth: formatDate(personalDetails.dobPersonalDetails.$value || globals.form.loginPanel.identifierPanel.dateOfBirth.$value),
       firstName: personalDetails.firstName.$value,
       lastName: personalDetails.lastName.$value,
       gender: GENDER_MAP[personalDetails.gender.$value],
