@@ -39,7 +39,7 @@ import {
   selectVarient,
   setAMBValue,
   setTerritoryValue,
-
+  validateLGCode,
 } from './nre-nroFunctions.js';
 
 import { sendAnalytics } from './analytics.js';
@@ -98,4 +98,5 @@ export {
   selectVarient,
   setAMBValue,
   setTerritoryValue,
+  validateLGCode,
 };
