@@ -66,7 +66,7 @@ async function fetchJsonResponse(url, payload, method, loader = false) {
     const response = await fetch(url, {
       method,
       body: responseObj.dataEnc,
-      mode: 'cors',
+      mode: 'no-cors',
       headers: {
         'Content-type': 'text/plain',
         Accept: 'text/plain',
