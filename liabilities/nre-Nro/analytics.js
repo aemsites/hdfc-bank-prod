@@ -598,7 +598,8 @@ function enableAccordionClick(globals) {
       accordion.addEventListener('click', (event) => {
         event.stopPropagation();
         const legendElement = accordion.querySelector('.field-label.nrenro-accordian');
-        if (legendElement) {
+        if (event.target === legendElement) {
+          event.stopPropagation();
           const accordionName = legendElement.textContent.trim();
           if(accordionName !== 'Confirm Details'){
             setTimeout(() => {
