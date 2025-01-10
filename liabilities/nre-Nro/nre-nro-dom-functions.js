@@ -213,6 +213,7 @@ linkModalFunction(consent2RequestProductTxtConfig);
 setTimeout(() => {
   setMaxDateToToday('dateOfBirth');
   addMobileValidation();
+  document.querySelector('.field-password input').type = 'password';
 }, 1200);
 
 export {
