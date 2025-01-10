@@ -7,7 +7,6 @@ import {
 import fetchAuthCode from './idcomutils.js';
 
 import {
-//ssss
   urlPath,
   santizedFormDataWithContext,
   createLabelInElement,
@@ -21,13 +20,11 @@ import {
 import { initRestAPIDataSecurityServiceES6 } from './apiDataSecurity.js';
 
 import * as CONSTANT from './constants.js';
-import * as CC_CONSTANT from '../creditcards/corporate-creditcard/constant.js';
 
 const {
   ENDPOINTS,
   CURRENT_FORM_CONTEXT: currentFormContext,
 } = CONSTANT;
-const { JOURNEY_NAME: journeyNameConstant } = CC_CONSTANT;
 
 /**
   * @name isValidJson
@@ -138,27 +135,27 @@ async function aadharInit(mobileNumber, pan, dob, globals) {
       initParameters: {
         journeyId: currentFormContext.journeyID,
         transactionId: currentFormContext.journeyID.replace(/-/g, '').replace(/_/g, ''),
-        journeyName: journeyNameConstant,
+        journeyName: currentFormContext.journeyName,
         userAgent: window.navigator.userAgent,
         mobileNumber: mobileNumber.$value,
         leadProfileId: globals?.form.runtime.leadProifileId.$value,
         additionalParam1: '',
         additionalParam2: '',
-        identifierValue: pan.$value || dob.$value,
+        identifierValue: pan?.$value?.replace(/\s+/g, '') || dob.$value,
         identifierName: pan.$value ? 'PAN' : 'DOB',
       },
       auth: {
         journey_key: currentFormContext.journeyID,
         service_code: 'XX2571ER',
       },
-      existingCustomer: currentFormContext.journeyType === 'NTB' ? 'N' : 'Y',
+      existingCustomer: currentFormContext?.journeyType === 'NTB' ? 'N' : 'Y',
       data_otp_gen: {
         UID_NO: '',
       },
       data_app: {
         journey_id: currentFormContext.journeyID,
         lead_profile_id: globals?.form.runtime.leadProifileId.$value,
-        callback: urlPath(ENDPOINTS.aadharCallback),
+        callback: urlPath(ENDPOINTS.aadhaarCallBack?.[currentFormContext.journeyName]),
         lead_profile: {
           leadProfileId: globals?.form.runtime.leadProifileId.$value,
           mobileNumber: mobileNumber.$value,
@@ -166,7 +163,7 @@ async function aadharInit(mobileNumber, pan, dob, globals) {
         },
         journeyStateInfo: {
           state: 'CUSTOMER_AADHAR_VALIDATION',
-          stateInfo: journeyNameConstant,
+          stateInfo: currentFormContext.journeyName,
           formData: santizedFormDataWithContext(globals, currentFormContext),
         },
         auditData: {
@@ -213,9 +210,12 @@ async function aadharInit(mobileNumber, pan, dob, globals) {
     },
   };
 
-  const path = urlPath(ENDPOINTS.aadharInit);
-  let finalPayload = btoa(unescape(encodeURIComponent(JSON.stringify(jsonObj))));
+  let path = urlPath(ENDPOINTS.aadhaarInit?.[currentFormContext.journeyName]);
+  const finalPayload = btoa(unescape(encodeURIComponent(JSON.stringify(jsonObj))));
   const decodedData = decodeURIComponent(escape(atob(finalPayload)));
+  if (!isValidJson(decodedData)) {
+    path = `https://hdfc-dev-04.adobecqms.net${ENDPOINTS.aadhaarInit?.[currentFormContext.journeyName]}`;
+  }
   const response = fetchJsonResponse(path, jsonObj, 'POST');
   response
     .then((res) => {
@@ -243,8 +243,10 @@ function redirect(redirectUrl) {
   let urlLink = redirectUrl;
   if (redirectUrl === 'VKYCURL' && currentFormContext.VKYC_URL) {
     urlLink = currentFormContext.VKYC_URL;
+    window.open(urlLink, '_blank');
+  } else {
+    window.location.href = urlLink;
   }
-  window.location.href = urlLink;
 }
 
 /**
@@ -263,6 +265,17 @@ function reloadPage(globals) {
     window.location.reload();
   }
 }
+
+const loadHomePage = (globals) => {
+  const homePage = window.location.origin + window.location.pathname;
+  const formUrl = globals.functions.exportData()?.formUrl;
+
+  if (formUrl) {
+    window.location.href = formUrl;
+  } else {
+    window.location.href = homePage;
+  }
+};
 
 /**
  * set the value of idcom url in current form context
@@ -326,6 +339,13 @@ function days(endDate, startDate) {
   return Math.floor(diffInMs / (1000 * 60 * 60 * 24));
 }
 
+const localJsonCompatibleTime = () => {
+  const date = new Date();
+  const timezoneOffset = date.getTimezoneOffset() * 60000;
+  const localISOTime = new Date(date - timezoneOffset).toISOString();
+  return localISOTime;
+};
+
 export {
   hideLoaderGif,
   validatePan,
@@ -340,4 +360,6 @@ export {
   onWizardInit,
   days,
   initRestAPIDataSecurityServiceES6,
+  loadHomePage,
+  localJsonCompatibleTime,
 };

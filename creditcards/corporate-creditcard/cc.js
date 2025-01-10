@@ -256,7 +256,7 @@ const visitTypeParam = searchParam.get('visitType');
 const authModeParam = searchParam.get('authmode');
 const journeyId = searchParam.get('journeyId');
 const aadharRedirect = visitTypeParam && (visitTypeParam === 'EKYC_AUTH');
-const idComRedirect = authModeParam && ((authModeParam === 'DebitCard') || (authModeParam === 'CreditCard') || (authModeParam === 'NetBanking')); // debit card or credit card or netbanking flow
+const idComRedirect = authModeParam && ((authModeParam === 'AadhaarOTP') || (authModeParam === 'DebitCard') || (authModeParam === 'CreditCard') || (authModeParam === 'NetBanking')); // debit card or credit card or netbanking flow
 
 /**
  * @name invokeJourneyDropOffByParam
@@ -395,11 +395,59 @@ const onPageLoadAnalytics = async () => {
   // eslint-disable-next-line no-underscore-dangle, no-undef
   journeyData.journeyId = myForm.resolveQualifiedName('$form.runtime.journeyId')._data.$_value;
   journeyData.journeyName = 'CORPORATE_CARD_JOURNEY';
+  journeyData.userIsIdentified = 'CUSTOMER_IDENTITY_NOT_RESOLVED';
   const queryString = window.location.search.toLowerCase();
   const urlParams = new URLSearchParams(queryString);
   const paramAuthMode = urlParams.get('authmode');
   const paramVisitType = urlParams.get('visittype');
   if (!paramAuthMode && !paramVisitType) sendAnalytics('page load-Identify yourself', {}, 'CRM_LEAD_SUCCESS', journeyData);
+  if (aadharRedirect) {
+    if (typeof document !== 'undefined') {
+      DOM_API.decorateStepper();
+    }
+    const { CURRENT_FORM_CONTEXT: currentFormContext } = (await import('../../common/constants.js'));
+    currentFormContext.action = 'aadhar redirected';
+    currentFormContext.pageGotRedirected = true;
+    let formData;
+    try {
+      const data = await invokeJourneyDropOffByParam('', '', (currentFormContext?.journeyID || journeyData?.journeyId));
+      formData = JSON.parse(data?.formData?.journeyStateInfo?.[data.formData.journeyStateInfo.length - 1]?.stateInfo);
+    } catch (error) {
+      formData = {
+        journeyId: currentFormContext?.journeyID,
+      };
+    }
+    setTimeout(() => {
+      Promise.resolve(sendPageloadEvent('CUSTOMER_BUREAU_OFFER_AVAILABLE', formData, 'Address Details'));
+    }, 1000);
+  }
+
+  /* sendAnalyticsEvent missing in form for 'submitAndConfirmButton' async call - script for simulating the same event through JS code 👇 */
+  if ((typeof window !== 'undefined') && (typeof document !== 'undefined')) {
+    const submitAndConfirmButton = document.querySelector('[name=submitAndConfirmButton]');
+    (() => {
+      submitAndConfirmButton?.addEventListener('click', async (e) => {
+        e.preventDefault();
+        let formData;
+        const { CURRENT_FORM_CONTEXT: currentFormContext } = (await import('../../common/constants.js'));
+        try {
+          const data = await invokeJourneyDropOffByParam('', '', (currentFormContext?.journeyID || journeyData?.journeyId));
+          const simulatedGlobals = JSON.parse(data?.formData?.journeyStateInfo?.[data.formData.journeyStateInfo.length - 1]?.stateInfo);
+          const mapRadioDeliveryChecked = structuredClone(simulatedGlobals);
+          const currentAddress = document.querySelector('[id=carddeliveryaddressoption1]')?.checked ? '1' : undefined;
+          const officeAddress = document.querySelector('[id=carddeliveryaddressoption2]')?.checked ? '1' : undefined;
+          mapRadioDeliveryChecked.form.cardDeliveryAddressOption1 = currentAddress;
+          mapRadioDeliveryChecked.form.cardDeliveryAddressOption2 = officeAddress;
+          formData = mapRadioDeliveryChecked;
+        } catch (error) {
+          formData = {
+            journeyId: currentFormContext?.journeyID,
+          };
+        }
+        sendAnalytics('address continue', { errorCode: '0000', errorMessage: 'Success' }, 'CUSTOMER_AADHAAR_BIOMETRIC_SELECTED', formData);
+      });
+    })();
+  }
 };
 
 setTimeout(() => {

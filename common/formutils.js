@@ -3,6 +3,7 @@
 
 import * as CONSTANT from './constants.js';
 import * as DOM_API from '../creditcards/domutils/domutils.js';
+import { getJsonWithoutEncrypt } from './makeRestAPI.js';
 
 const {
   setDataAttributeOnClosestAncestor,
@@ -15,7 +16,7 @@ const {
   attachRedirectOnClick,
 } = DOM_API; // DOM_MANIPULATE_CODE_FUNCTION
 
-const { BASEURL } = CONSTANT;
+const { BASEURL, PIN_CODE_LENGTH } = CONSTANT;
 
 // declare-CONSTANTS
 const DATA_ATTRIBUTE_EMPTY = 'data-empty';
@@ -84,7 +85,7 @@ const formUtil = (globalObj, panelName) => ({
   setValue: (val, changeDataAttr) => {
     globalObj.functions.setProperty(panelName, { value: val });
     if (changeDataAttr?.attrChange && val) {
-      const element = document.getElementsByName(panelName._data.$_name)?.[0];
+      const element = document.getElementsByName(panelName._data.$_name)?.[0] || document.getElementsByName(panelName.$name)?.[0];
       if (element) {
         const closestAncestor = element.closest(`.${ANCESTOR_CLASS_NAME}`);
         if (closestAncestor) {
@@ -109,7 +110,7 @@ const formUtil = (globalObj, panelName) => ({
    */
   resetField: () => {
     globalObj.functions.setProperty(panelName, { value: '' });
-    const element = document.getElementsByName(panelName._data.$_name)?.[0];
+    const element = document.getElementsByName(panelName._data.$_name)?.[0] || document.getElementsByName(panelName.$name)?.[0];
     if (element) {
       const closestAncestor = element.closest(`.${ANCESTOR_CLASS_NAME}`);
       if (closestAncestor) {
@@ -146,7 +147,7 @@ const getTimeStamp = (currentTime) => {
  */
 const getTimeStampNoSeconds = (currentTime) => {
   // Function to pad single digit numbers with leading zero
-  const pad = (number) => ((number < 10) ? `0${number}` : number);
+  const pad = (number) => (String(number).padStart(2, '0'));
   // Format the datetime as desired
   const formattedDatetime = currentTime.getFullYear()
     + pad(currentTime.getMonth() + 1)
@@ -213,24 +214,55 @@ const dateFormat = (dateString, format) => {
  * @param {string} fn - The first name.
  * @param {string} mn - The middle name.
  * @param {string} ln - The last name.
+ * @param {string} cardType - The card type.
+ * @param {number} ln - max name length.
  * @returns {Array<Object>} -  An array of objects representing different combinations of names using the provided first name (fn), middle name (mn), and last name (ln).
  */
-const composeNameOption = (fn, mn, ln) => {
+const composeNameOption = (fn, mn, ln, cardType, maxlength) => {
   const initial = (str) => str?.charAt(0);
-  const stringify = ([a, b]) => (a && b ? `${a} ${b}` : '');
-  const toOption = (a) => ({ label: a, value: a });
-  const MAX_LENGTH = 19;
-  const names = [
-    [fn, initial(mn)],
-    [fn, mn],
-    [mn, fn],
-    [mn, initial(fn)],
-    [initial(mn), fn],
-    [fn, ln],
-    [mn, ln],
-    [initial(mn), ln],
-  ]?.map(stringify)?.filter((el) => el && el?.length <= MAX_LENGTH);
-  return [...new Set(names)]?.map(toOption);
+  const createNames = (patterns) => patterns
+    .map(([a, b]) => [a, b].filter(Boolean).join(' '))
+    .filter((el) => (!maxlength || el.length <= maxlength));
+
+  const basePatterns = [
+    fn && mn ? [fn, initial(mn)] : null,
+    fn && mn ? [fn, mn] : null,
+    fn && ln ? [fn, ln] : null,
+    mn && fn ? [mn, fn] : null,
+    mn && fn ? [mn, initial(fn)] : null,
+    mn && ln ? [mn, ln] : null,
+    mn ? [initial(mn), fn] : null,
+    mn && ln ? [initial(mn), ln] : null,
+  ].filter(Boolean); // Remove nulls
+
+  /**
+    * Generates a pattern for edge cases in CCC where no option exceeds the maximum limit.
+    * The pattern combines the first name and the initial of the last name, or vice versa.
+   */
+  const cccExtraPattern = [
+    fn && ln ? [fn, initial(ln)] : null,
+    fn && ln ? [ln, initial(fn)] : null,
+  ].filter(Boolean);
+
+  const fdExtraPatterns = [
+    fn ? [fn] : null,
+    mn ? [mn] : null,
+    ln ? [ln] : null,
+  ].filter(Boolean);
+
+  let names = [];
+  switch (cardType) {
+    case 'ccc':
+      names = (createNames(basePatterns)?.length === 0) ? createNames(cccExtraPattern) : createNames(basePatterns);
+      break;
+    case 'fd':
+      names = createNames([...basePatterns, ...fdExtraPatterns]);
+      break;
+    default:
+      return [];
+  }
+
+  return [...new Set(names)].map((a) => ({ label: a, value: a }));
 };
 
 /**
@@ -239,22 +271,27 @@ const composeNameOption = (fn, mn, ln) => {
  * @returns {string[]} An array of substrings, each containing up to 30 characters.
  */
 const parseCustomerAddress = (address) => {
-  const words = address.trim().split(' ');
+  const words = address.replace(/\s+/g, ' ').trim().split(' ');
   const substrings = [];
   let currentSubstring = '';
-
   words.forEach((word) => {
-    if (substrings.length === 3) {
-      return; // Exit the loop if substrings length is equal to 3
-    }
-    if ((`${currentSubstring} ${word}`).length <= 30) {
+    if (substrings.length === 2) {
+      if ((`${currentSubstring} ${word}`).trim().length <= 30) {
+        currentSubstring += (currentSubstring === '' ? '' : ' ') + word;
+      }
+    } else if ((`${currentSubstring} ${word}`).trim().length <= 30) {
       currentSubstring += (currentSubstring === '' ? '' : ' ') + word;
     } else {
       substrings.push(currentSubstring);
       currentSubstring = word;
     }
   });
-
+  if (currentSubstring) {
+    if (substrings.length === 2 && currentSubstring.length > 30) {
+      currentSubstring = currentSubstring.slice(0, 30);
+    }
+    substrings.push(currentSubstring);
+  }
   return substrings;
 };
 
@@ -375,7 +412,7 @@ const getCurrentDateAndTime = (dobFormatNo) => {
  * @param {String} name - The name token.
  * @returns {String} sanitized name - removes special chars, spaces.
  */
-const sanitizeName = (name) => name.replace(/[^a-zA-Z]/g, '');
+const sanitizeName = (name) => name.replace(/[^a-zA-Z\s]/g, '');
 
 /**
  * Splits a full name into its components: first name, middle name, and last name.
@@ -391,10 +428,29 @@ const splitName = (fullName) => {
   if (fullName) {
     const parts = fullName.split(' ');
     name.firstName = sanitizeName(parts.shift()) || '';
-    name.lastName = sanitizeName(parts.pop()) || '';
-    name.middleName = parts.length > 0 ? sanitizeName(parts[0]) : '';
+    if (parts.length > 0) {
+      name.lastName = sanitizeName(parts.pop()) || '';
+      name.middleName = parts.length > 0 ? sanitizeName(parts[0]) : '';
+    }
   }
   return name;
+};
+
+const parseName = (fullName, maxlength) => {
+  // eslint-disable-next-line prefer-const
+  let [firstName, middleName = '', lastName = ''] = sanitizeName(fullName).trim().split(/\s+/).slice(0, 3);
+  if (!lastName) {
+    lastName = middleName;
+    middleName = '';
+  }
+  let combinedName = `${firstName}${middleName ? ` ${middleName}` : ''}${lastName ? ` ${lastName}` : ''}`;
+  if (combinedName.length <= maxlength) {
+    return { firstName, middleName, lastName };
+  }
+  combinedName = `${firstName} ${lastName}`;
+  return combinedName.length > maxlength
+    ? { firstName, middleName: '', lastName: `${lastName.charAt(0)}` }
+    : { firstName, middleName: '', lastName };
 };
 
 /**
@@ -405,12 +461,228 @@ const splitName = (fullName) => {
  * @returns {Boolean} - True if the date of birth falls within the specified age range; otherwise, false.
  */
 const ageValidator = (minAge, maxAge, dobValue) => {
-  const ipDobValue = new Date(dobValue);
-  const diff = Date.now() - ipDobValue.getTime();
-  const ageDate = new Date(diff);
-  const age = Math.abs(ageDate.getUTCFullYear() - 1970); // Date.now() and the getTime() method, starts from January 1, 1970 hence 1970.
-  const ageBtwMinMax = (age >= minAge && age <= maxAge);
-  return ageBtwMinMax;
+  const birthDate = new Date(dobValue);
+
+  const today = new Date();
+
+  let age = today.getFullYear() - birthDate.getFullYear();
+
+  const birthMonth = birthDate.getMonth();
+  const birthDay = birthDate.getDate();
+
+  const todayMonth = today.getMonth();
+  const todayDay = today.getDate();
+
+  if (todayMonth < birthMonth || (todayMonth === birthMonth && todayDay < birthDay)) {
+    age -= 1;
+  }
+
+  return age >= minAge && age < maxAge;
+};
+
+/**
+ * Formats a date string into the format "DDth MMM YYYY".
+ *
+ * The day of the month will have the appropriate suffix (st, nd, rd, or th).
+ *
+ * @param {string} dateStr - The date string in a format recognized by the `Date` constructor.
+ * @returns {string} The formatted date string.
+ *
+ * @example
+ * formatDateDDMMMYYY('2023-08-19'); // '19th Aug 2023'
+ */
+const formatDateDDMMMYYY = (dateStr) => {
+  const dateObj = new Date(dateStr);
+
+  const day = dateObj.getDate();
+  const year = dateObj.getFullYear();
+
+  const months = [
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+  ];
+  const month = months[dateObj.getMonth()];
+
+  const daySuffix = (d) => {
+    if (d > 3 && d < 21) return 'th';
+    switch (d % 10) {
+      case 1: return 'st';
+      case 2: return 'nd';
+      case 3: return 'rd';
+      default: return 'th';
+    }
+  };
+
+  return `${day}${daySuffix(day)} ${month} ${year}`;
+};
+
+/**
+ * Handles API call for validating pinCode using the pinCodeMaster function.
+ * @param {object} globalObj - The global object containing necessary globals form data.
+ * @param {object} cityField - The City field object from the global object.
+ * @param {object} stateField - The State field object from the global object.
+ * @param {object} pincodeField - The PinCode field object from the global object.
+ * @param {number} pincode - The PinCode.
+ */
+
+const pinCodeMasterCheck = async (globals, cityField, stateField, pincodeField, pincode) => {
+  const url = urlPath(`/content/hdfc_commonforms/api/mdm.CREDIT.SIX_DIGIT_PINCODE.PINCODE-${pincode}.json`);
+  if (pincodeField?.$value?.length < PIN_CODE_LENGTH) return;
+  const method = 'GET';
+  const cityFieldUtil = formUtil(globals, cityField);
+  const stateFieldUtil = formUtil(globals, stateField);
+  const resetStateCityFields = () => {
+    cityFieldUtil.resetField();
+    stateFieldUtil.resetField();
+    cityFieldUtil.enabled(false);
+    stateFieldUtil.enabled(false);
+  };
+  const errorMethod = async (errStack) => {
+    const { errorCode } = errStack;
+    const defErrMessage = 'Please enter a valid pincode';
+    if (errorCode === '500') {
+      globals.functions.markFieldAsInvalid(pincodeField.$qualifiedName, defErrMessage, { useQualifiedName: true });
+      resetStateCityFields();
+    }
+  };
+  const successMethod = async (value) => {
+    const changeDataAttrObj = { attrChange: true, value: false };
+    globals.functions.markFieldAsInvalid(pincodeField.$qualifiedName, '', { useQualifiedName: true });
+    globals.functions.setProperty(pincodeField, { valid: true });
+    cityFieldUtil.setValue(value?.CITY, changeDataAttrObj);
+    cityFieldUtil.enabled(false);
+    stateFieldUtil.setValue(value?.STATE, changeDataAttrObj);
+    stateFieldUtil.enabled(false);
+  };
+
+  try {
+    const response = await getJsonWithoutEncrypt(url, null, method);
+    globals.functions.setProperty(pincodeField, { valid: true });
+    const [{ CITY, STATE }] = response;
+    const [{ errorCode, errorMessage }] = response;
+    if (CITY && STATE) {
+      successMethod({ CITY, STATE });
+    } else if (errorCode) {
+      const errStack = { errorCode, errorMessage };
+      throw errStack;
+    }
+  } catch (error) {
+    errorMethod(error);
+  }
+};
+
+const getUrlParamCaseInsensitive = (param) => {
+  const urlSearchParams = new URLSearchParams(window.location.search);
+
+  const paramEntry = [...urlSearchParams.entries()]
+    .find(([key]) => key.toLowerCase() === param.toLowerCase());
+
+  return paramEntry ? paramEntry[1] : null;
+};
+
+const fetchFiller4 = (mobileMatch, kycStatus, journeyType) => {
+  let filler4Value = null;
+  switch (kycStatus) {
+    case 'aadhaar':
+      // eslint-disable-next-line no-nested-ternary
+      filler4Value = (journeyType === 'NTB') ? `VKYC${getCurrentDateAndTime(3)}` : ((journeyType === 'ETB') && mobileMatch) ? `NVKYC${getCurrentDateAndTime(3)}` : `VKYC${getCurrentDateAndTime(3)}`;
+      break;
+    case 'bioKYC':
+      filler4Value = 'bioKYC';
+      break;
+    case 'biokyc':
+      filler4Value = 'biokyc';
+      break;
+    case 'OVD':
+      filler4Value = 'OVD';
+      break;
+    default:
+      filler4Value = null;
+  }
+  return filler4Value;
+};
+const extractJSONFromHTMLString = (htmlString) => {
+  let jsonString = htmlString.replace(/<\/?p>/g, '');
+  jsonString = jsonString
+    .replace(/&quot;/g, '"')
+    .replace(/\\n/g, '');
+  try {
+    const jsonObject = JSON.parse(jsonString);
+    return jsonObject;
+  } catch (error) {
+    return null;
+  }
+};
+
+function applicableCards(employmentTypeMap, employmentType, cardMap, applicableCreditLimit) {
+  const employmentCategory = employmentTypeMap[employmentType];
+
+  const cardData = cardMap[employmentCategory];
+
+  const matchingCard = cardData.find((entry) => {
+    const [minLimit, maxLimit] = entry.creditLimit.split('-').map(Number);
+    return applicableCreditLimit >= minLimit && applicableCreditLimit <= maxLimit;
+  });
+
+  return matchingCard ? matchingCard.card : [];
+}
+
+const pincodeCheck = async (pincode, city, state) => {
+  const url = urlPath(`/content/hdfc_commonforms/api/mdm.CREDIT.SIX_DIGIT_PINCODE.PINCODE-${pincode}.json`);
+
+  // Define the error handling method
+  const errorMethod = () => ({ result: 'false' });
+
+  // Define the success method
+  const successMethod = (value) => {
+    if (value?.CITY?.toLowerCase() === city?.toLowerCase() && value?.STATE?.toLowerCase() === state?.toLowerCase()) {
+      return { result: 'true' };
+    }
+    return { result: 'false' };
+  };
+
+  try {
+    const response = await getJsonWithoutEncrypt(url, null, 'GET');
+
+    if (response && Array.isArray(response)) {
+      const [{
+        CITY, STATE, errorCode, errorMessage,
+      }] = response;
+
+      if (CITY && STATE) {
+        return successMethod({ CITY, STATE });
+      } if (errorCode) {
+        throw new Error(`Error ${errorCode}: ${errorMessage}`);
+      }
+    }
+    return { result: 'false' };
+  } catch (error) {
+    return errorMethod();
+  }
+};
+
+const fetchFiller3 = (authMode, status) => {
+  if (authMode?.toLowerCase() === 'debitcard' && status?.toLowerCase() === 'true') {
+    return 'DCPINSUCCESS';
+  }
+  if (authMode?.toLowerCase() === 'netbanking' && status?.toLowerCase() === 'true') {
+    return 'NBSUCCESS';
+  }
+  if (authMode?.toLowerCase() === 'aadhaarotp' && status?.toLowerCase() === 'true') {
+    return 'AADHAARSUCCESS';
+  }
+  return '';
+};
+
+const formatIndian = (amount) => {
+  const str = amount.toString();
+  let lastThree = str.slice(-3);
+  const otherNumbers = str.slice(0, -3);
+  if (otherNumbers) {
+    lastThree = `,${lastThree}`;
+  }
+  const formatted = otherNumbers.replace(/\B(?=(\d{2})+(?!\d))/g, ',') + lastThree;
+  return `₹${formatted}`;
 };
 /**
  * Creates a deep copy of the given blueprint object.
@@ -424,6 +696,52 @@ const ageValidator = (minAge, maxAge, dobValue) => {
 function createDeepCopyFromBlueprint(blueprint) {
   return JSON.parse(JSON.stringify(blueprint));
 }
+
+const generateErefNumber = () => {
+  const timestamp = Date.now().toString(); // Current time in milliseconds
+  const randomComponent = Math.floor(Math.random() * 1000).toString().padStart(3, '0'); // Random 3-digit number
+  const uniqueNumber = timestamp.slice(-9) + randomComponent; // Take the last 9 digits of timestamp + 3 random digits
+  return `AD${uniqueNumber}`;
+};
+
+/**
+ * Masks all characters in a string with 'X', except for the specified number of characters at the end.
+ *
+ * @param {string} str - The input string to be masked.
+ * @param {number} [visibleCount=4] - The number of characters to leave unmasked at the end of the string. Defaults to 4.
+ * @returns {string} - The masked string with only the last `visibleCount` characters visible.
+ */
+const maskString = (str, visibleCount = 4) => {
+  if (str === undefined || str?.length <= visibleCount) return str;
+  return 'X'.repeat(str.length - visibleCount) + str.slice(-visibleCount);
+};
+
+/**
+ * Asynchronously generates a SHA-256 hash of the provided input value.
+ *
+ * @async
+ * @function generateHash
+ * @param {*} value - The input value to be hashed. It will be converted to a string before hashing.
+ * @returns {Promise<string>} A promise that resolves to the hexadecimal representation of the SHA-256 hash.
+ *
+ * @example
+ * generateHash("example").then(hash => {
+ * console.log(hash)
+ * return hash;
+ * });
+ * or
+ * await generateHash("example")
+ * // Output: "2d711642b726b04401627ca9fbac32f5c7b6d23fa8d39e21e5e8b4eebf7e5e73"
+ */
+const generateHash = async (value) => {
+  const input = String(value);
+  const encoder = new TextEncoder();
+  const rawdata = encoder.encode(input);
+  const hash = await crypto.subtle.digest('SHA-256', rawdata);
+  return Array.from(new Uint8Array(hash))
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('');
+};
 
 export {
   urlPath,
@@ -452,6 +770,20 @@ export {
   createLabelInElement,
   decorateStepper,
   ageValidator,
+  formatDateDDMMMYYY,
+  pinCodeMasterCheck,
+  getUrlParamCaseInsensitive,
+  fetchFiller4,
+  extractJSONFromHTMLString,
+  applicableCards,
+  parseName,
+  sanitizeName,
+  fetchFiller3,
+  pincodeCheck,
   attachRedirectOnClick,
   createDeepCopyFromBlueprint,
+  formatIndian,
+  generateErefNumber,
+  maskString,
+  generateHash,
 };

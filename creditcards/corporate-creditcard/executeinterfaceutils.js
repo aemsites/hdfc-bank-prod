@@ -22,6 +22,7 @@ import {
   CURRENT_FORM_CONTEXT as currentFormContext,
   FORM_RUNTIME as formRuntime,
 } from '../../common/constants.js';
+import { NAME_ON_CARD_MAX_LENGTH } from './constant.js';
 
 import { sendAnalytics } from './analytics.js';
 
@@ -102,16 +103,12 @@ const createExecuteInterfaceRequestObj = (globals) => {
       currentAddress.state = newCurentAddressPanel.newCurentAddressState.$value;
     } else if (customerFiller2 === 'D106') {
       const ALLOWED_CHARACTERS = '/-, ';
-       	if(!currentFormContext.customerParsedAddress) {
-		      const fullAddress = [
-          removeSpecialCharacters(breDemogResponse?.VDCUSTADD1, ALLOWED_CHARACTERS),
-          removeSpecialCharacters(breDemogResponse?.VDCUSTADD2, ALLOWED_CHARACTERS),
-          removeSpecialCharacters(breDemogResponse?.VDCUSTADD3, ALLOWED_CHARACTERS),
+      if (!currentFormContext.customerParsedAddress) {
+        const fullAddress = [removeSpecialCharacters(breDemogResponse?.VDCUSTADD1, ALLOWED_CHARACTERS), removeSpecialCharacters(breDemogResponse?.VDCUSTADD2, ALLOWED_CHARACTERS), removeSpecialCharacters(breDemogResponse?.VDCUSTADD3, ALLOWED_CHARACTERS),
         ]
           .filter(Boolean)
-          .join('');
-		  currentFormContext.customerParsedAddress = parseCustomerAddress(fullAddress);
-	}
+          .join(''); currentFormContext.customerParsedAddress = parseCustomerAddress(fullAddress);
+      }
       [currentAddress.address1, currentAddress.address2, currentAddress.address3] = currentFormContext.customerParsedAddress;
       currentAddress.city = breDemogResponse.VDCUSTCITY;
       currentAddress.pincode = breDemogResponse.VDCUSTZIPCODE;
@@ -163,7 +160,7 @@ const createExecuteInterfaceRequestObj = (globals) => {
       communicationAddress1: currentAddress.address1,
       communicationAddress2: currentAddress.address2,
       communicationCity: currentAddress.city,
-      dateOfBirth: formatDate(personalDetails.dobPersonalDetails.$value),
+      dateOfBirth: formatDate(personalDetails.dobPersonalDetails.$value || globals.form.loginPanel.identifierPanel.dateOfBirth.$value),
       firstName: personalDetails.firstName.$value,
       lastName: personalDetails.lastName.$value,
       gender: GENDER_MAP[personalDetails.gender.$value],
@@ -244,7 +241,7 @@ const listNameOnCard = (globals) => {
   const middleName = personalDetails.middleName.$value;
   const lastName = personalDetails.lastName.$value;
   const dropDownSelectField = globals.form.corporateCardWizardView.confirmCardPanel.cardBenefitsPanel.CorporatetImageAndNamePanel.nameOnCardDropdown;
-  const options = composeNameOption(firstName, middleName, lastName);
+  const options = composeNameOption(firstName, middleName, lastName, 'ccc', NAME_ON_CARD_MAX_LENGTH);
   const initialValue = options[0]?.value;
   setSelectOptions(options, elementNameSelect);
   const setDropdownField = formUtil(globals, dropDownSelectField);
@@ -447,6 +444,7 @@ const executeInterfacePostRedirect = async (source, userRedirected, globals) => 
   const { selectKYCMethodOption1: { aadharEKYCVerification }, selectKYCMethodOption2: { aadharBiometricVerification }, selectKYCMethodOption3: { officiallyValidDocumentsMethod } } = globals.form.corporateCardWizardView.selectKycPanel.selectKYCOptionsPanel;
   const formData = globals.functions.exportData();
   const radioBtnValues = globals.functions.exportData()?.currentFormContext?.radioBtnValues;
+  // eslint-disable-next-line no-unused-vars
   const kycFill = {
     KYC_STATUS:
         ((aadharEKYCVerification.$value || formData?.form?.aadharEKYCVerification || radioBtnValues?.kycMethod?.aadharEKYCVerification) && 'aadhaar')
@@ -454,7 +452,7 @@ const executeInterfacePostRedirect = async (source, userRedirected, globals) => 
         || ((officiallyValidDocumentsMethod.$value || formData?.form?.officiallyValidDocumentsMethod || radioBtnValues?.kycMethod?.officiallyValidDocumentsMethod) && 'OVD')
         || null,
   };
-  if ((source === 'NO_IDCOM_REDIRECTION') && (kycFill.KYC_STATUS === 'bioKYC')) {
+  if ((source === 'NO_IDCOM_REDIRECTION')) {
     requestObj.requestString.authMode = 'OTP';
   }
   requestObj.requestString.comAddressType = comAddressType(globals, userRedirected); // set com address type

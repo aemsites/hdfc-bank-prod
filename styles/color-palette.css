@@ -3,8 +3,9 @@
   --color-interface-background-secondary: #ebf1ff;
   --color-interface-background-tertiary: #1d4a88;
   --color-interface-background-quaternary: #111827;
-  --color-interface-background-quinary: #F3F6FD;
+  --color-interface-background-quinary: #f3f6fd;
   --color-interface-background-box-shadow-primary: #ccc;
+  --color-interface-background-box-shadow-secondary: #1c3fca24;
   --color-interface-error-box-primary: #fdefed;
   --color-interface-text-primary: #111827;
   --color-interface-text-secondary: #6b7280;
@@ -26,20 +27,21 @@
   --color-action-text-secondary-default: #1c3fca;
   --color-action-text-secondary-hover: #1c3fca;
   --color-action-text-secondary-disabled: #1c3fca;
+  --color-action-text-tertiary-default: #084b89;
   --color-action-border-secondary-default: #1c3fca;
   --color-action-border-secondary-hover: #1c3fca;
   --color-action-border-secondary-disabled: #1c3fca;
-  --color-action-background-secondary-default: #fff;
-  --color-action-background-secondary-hover: #fff;
+  --color-action-background-secondary-default: #ebf3fb;
+  --color-action-background-secondary-hover: #ccccce;
   --color-action-background-secondary-disabled: #fff;
   --color-input-background-default: #fff;
   --color-input-background-disabled: #f7f7f7;
   --color-input-background-focus: #fff;
   --color-input-text-default: #000;
-  --color-input-text-primary: #4B5563;
+  --color-input-text-primary: #4b5563;
   --color-input-text-disabled: #9ca3af;
   --color-input-text-focus: #000;
-  --color-input-text-placeholder-default: #6b7280;
+  --color-input-text-placeholder-default: #cfd1d4;
   --color-input-text-placeholder-disabled: #6b7280;
   --color-input-text-msg-error: #e22853;
   --color-input-text-placeholder-focus: #6b7280;
@@ -48,5 +50,30 @@
   --color-input-border-active: #9ca3af;
   --color-input-border-disabled: #9ca3af;
   --color-input-border-error-default: #e30613;
-  --color-action-stepper-style: linear-gradient(90deg, rgb(211 214 220) 50%, rgba(255 255 255 / 0%) 100%);
+  --color-input-border-error: #e22853;
+  --color-input-box-shadow-error-default: #e2285324;
+  --color-action-stepper-style: linear-gradient(
+    90deg,
+    rgb(211 214 220) 50%,
+    rgba(255 255 255 / 0%) 100%
+  );
+  --color-interface-fd-background-primary: #08173a;
+  --color-interface-fd-background-secondary: #ddf2f8;
+  --color-interface-button-background: #1c3fca;
+  --color-interface-popup-background: #00000080;
+  --color-interface-fd-title-border: #525d75;
+  --color-action-scroll-primary: #4f6fdf;
+  --color-action-scroll-background-primary: #f5f6fb;
+  --color-interface-fileupload-border: #b9d7ca;
+  --color-interface-fileupload-background: #fafffd;
+  --color-interface-error-cta-background: #f4f0ff;
+  --color-interface-feedback-notlikelyrating: #ed5a6e;
+  --color-interface-feedback-mayberating: #f99f35;
+  --color-interface-feedback-verylikelyrating: #2db780;
+  --color-interface-promotion-background-primary: #fdedfa;
+  --color-interface-promotion-text-primary: #7454f2;
+  --color-interface-promotion-text-secondary: #ab47bc;
+  --color-interfave-errorpopup-text-primary: #222;
+  --color-interface-toaster-background-primary: #ebf9ef;
+  --color-interface-toaster-text-primary: #00875f;
 }

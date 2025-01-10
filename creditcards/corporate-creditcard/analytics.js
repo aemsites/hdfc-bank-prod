@@ -7,6 +7,7 @@ import {
 } from '../../common/analyticsConstants.js';
 import {
   createDeepCopyFromBlueprint,
+  generateHash,
   santizedFormDataWithContext,
 } from '../../common/formutils.js';
 import { FORM_NAME } from './constant.js';
@@ -24,10 +25,20 @@ import { CURRENT_FORM_CONTEXT as currentFormContext } from '../../common/constan
 function setAnalyticPageLoadProps(journeyState, formData, digitalData) {
   digitalData.user.pseudoID = '';// Need to check
   digitalData.user.journeyName = currentFormContext?.journeyName;
-  digitalData.user.journeyID = formData?.journeyId;
+  digitalData.user.journeyID = formData?.journeyId || currentFormContext?.journeyID;
   digitalData.user.journeyState = journeyState;
   digitalData.user.casa = '';
-  digitalData.form.name = FORM_NAME;
+  const leadID = formData?.currentFormContext?.LEAD_ID || currentFormContext?.LEAD_ID || ((typeof window !== 'undefined') && new URLSearchParams(window.location.search).get('leadId')) || '';
+  let leadType;
+  const USER = ((formData?.currentFormContext?.breDemogResponse?.BREFILLER2 === 'D101') || (currentFormContext?.breDemogResponse?.BREFILLER2 === 'D101')) ? 'ETB' : 'NTB';
+  if (formData?.userIsIdentified === 'CUSTOMER_IDENTITY_NOT_RESOLVED') {
+    leadType = `${FORM_NAME}`;
+  } else {
+    leadType = `${FORM_NAME}-${USER}`;
+    digitalData.user.casa = USER === 'ETB' ? 'yes' : 'no';
+  }
+  digitalData.form.name = leadType;
+  digitalData.user.leadID = leadID;
 }
 
 /**
@@ -47,21 +58,27 @@ function setAnalyticClickGenericProps(linkName, linkType, formData, journeyState
   digitalData.link.linkPosition = data[linkName].linkPosition;
   digitalData.user.pseudoID = '';
   digitalData.user.journeyName = currentFormContext?.journeyName;
-  digitalData.user.journeyID = currentFormContext?.journeyID;
+  digitalData.user.journeyID = currentFormContext?.journeyID || formData?.journeyId;
   digitalData.user.journeyState = journeyState;
-  if (linkName === 'otp click') {
-    digitalData.form.name = FORM_NAME;
+  const leadID = formData?.currentFormContext?.LEAD_ID || currentFormContext?.LEAD_ID || ((typeof window !== 'undefined') && new URLSearchParams(window.location.search).get('leadId')) || '';
+  const USER = (formData?.currentFormContext?.breDemogResponse?.BREFILLER2 === 'D101') || (currentFormContext?.breDemogResponse?.BREFILLER2 === 'D101') ? 'ETB' : 'NTB';
+  let leadType;
+  if ((linkName === 'otp click') || linkName === 'confirm otp') {
+    leadType = `${FORM_NAME}`;
+    digitalData.form.name = leadType;
     digitalData.user.casa = '';
   } else {
-    digitalData.form.name = formData.etbFlowSelected === 'on' ? `${FORM_NAME}-ETB` : `${FORM_NAME}-NTB`;
-    digitalData.user.casa = formData.etbFlowSelected === 'on' ? 'Yes' : 'No';
+    leadType = `${FORM_NAME}-${USER}`;
+    digitalData.form.name = leadType;
+    digitalData.user.casa = (USER === 'ETB') ? 'Yes' : 'No';
   }
+  digitalData.user.leadID = leadID;
   // window.digitalData = digitalData || {};
 }
 
 const getValidationMethod = (formContext) => {
-  if (formContext && formContext?.login && formContext.login.panDobSelection) {
-    return formContext.login.panDobSelection === '0' ? 'DOB' : 'PAN';
+  if (formContext && formContext.form.login.panDobSelection) {
+    return formContext.form.login.panDobSelection === '0' ? 'DOB' : 'PAN';
   }
   return '';
 };
@@ -76,6 +93,11 @@ const getValidationMethod = (formContext) => {
 function sendPageloadEvent(journeyState, formData, pageName) {
   const digitalData = createDeepCopyFromBlueprint(ANALYTICS_PAGE_LOAD_OBJECT);
   digitalData.page.pageInfo.pageName = pageName;
+  if (((journeyState === 'CUSTOMER_ONBOARDING_COMPLETE') || (currentFormContext.action === 'aadhar redirected')) && formData?.currentFormContext) {
+    Object.entries(formData.currentFormContext)?.forEach(([key, val]) => {
+      currentFormContext[key] = val;
+    });
+  }
   setAnalyticPageLoadProps(journeyState, formData, digitalData);
   switch (currentFormContext.action) {
     case 'check offers': {
@@ -88,11 +110,14 @@ function sendPageloadEvent(journeyState, formData, pageName) {
       // ((mobileValid === 'n')&&aadhaar_otp_val_data?.result?.mobileValid)
       // arn_num
       digitalData.page.pageInfo.pageName = PAGE_NAME.ccc['start kyc'];
-      const formCallBackContext = currentFormContext?.pageGotRedirected ? formData?.currentFormContext : currentFormContext;
       digitalData.formDetails = {
-        reference: formCallBackContext?.ARN_NUM,
-        isVideoKYC: formCallBackContext?.isVideoKYC ? 'Yes' : 'no', // value - ? 'yes' or 'no' if aadhar and then applicationMismatch
+        reference: formData?.currentFormContext?.ARN_NUM || currentFormContext?.ARN_NUM,
+        isVideoKYC: (formData?.currentFormContext?.VKYC_URL || currentFormContext?.VKYC_URL) ? 'Yes' : 'no', // value - ? 'yes' or 'no' if aadhar and then applicationMismatch
       };
+      break;
+    }
+    case 'aadhar redirected': {
+      digitalData.page.pageInfo.pageName = PAGE_NAME.ccc['address continue'];
       break;
     }
     default:
@@ -112,14 +137,15 @@ function sendPageloadEvent(journeyState, formData, pageName) {
  * @param {object} formContext
  * @param {object} digitalData
  */
-function sendSubmitClickEvent(phone, eventType, linkType, formData, journeyState, digitalData) {
+async function sendSubmitClickEvent(phone, eventType, linkType, formData, journeyState, digitalData) {
   setAnalyticClickGenericProps(eventType, linkType, formData, journeyState, digitalData);
   digitalData.page.pageInfo.pageName = PAGE_NAME.ccc[eventType];
   switch (eventType) {
     case 'otp click': {
       digitalData.event = {
-        phone,
+        phone: formData.form.login.maskedMobileNumber ? await generateHash(formData.form.login.maskedMobileNumber) : '',
         validationMethod: getValidationMethod(formData),
+        status: '1',
       };
       if (window) {
         window.digitalData = digitalData || {};
@@ -127,33 +153,38 @@ function sendSubmitClickEvent(phone, eventType, linkType, formData, journeyState
       _satellite.track('submit');
       currentFormContext.action = 'otp click';
       setTimeout(() => {
-        sendPageloadEvent('CUSTOMER_IDENTITY_RESOLVED', formData, PAGE_NAME.ccc['confirm otp']);
+        const structuredFormData = structuredClone(formData);
+        structuredFormData.userIsIdentified = 'CUSTOMER_IDENTITY_NOT_RESOLVED';
+        sendPageloadEvent('CUSTOMER_IDENTITY_RESOLVED', structuredFormData, PAGE_NAME.ccc['confirm otp']);
       }, 1000);
       break;
     }
     case 'confirm otp': {
+      digitalData.event = {
+        status: '1',
+      };
+      if (window) {
+        window.digitalData = digitalData || {};
+      }
+      _satellite.track('submit');
+      currentFormContext.action = 'confirm otp';
       setTimeout(() => {
         sendPageloadEvent('CUSTOMER_IDENTITY_RESOLVED', formData, PAGE_NAME.ccc['check offers']);
       }, 1000);
       break;
     }
     case 'check offers': {
+      digitalData.event = {
+        status: '1',
+      };
       digitalData.user.gender = formData.form.gender;
-      digitalData.user.email = formData.form.workEmailAddress;
-      if (formData.form.currentAddressToggle === 'off') {
-        digitalData.formDetails = {
-          pincode: currentFormContext?.breDemogResponse?.VDCUSTZIPCODE,
-          city: currentFormContext?.breDemogResponse?.VDCUSTCITY,
-          state: currentFormContext?.breDemogResponse?.VDCUSTSTATE,
-        };
-      } else {
-        const isETB = currentFormContext.journeyType === 'ETB';
-        digitalData.formDetails = {
-          pincode: isETB ? formData?.form?.newCurentAddressPin : formData?.form?.currentAddresPincodeNTB,
-          city: isETB ? 'hardcodedETBCity' : 'hardcodedNTBCity',
-          state: isETB ? 'hardcodedETBState' : 'hardcodedNTBState',
-        };
-      }
+      digitalData.user.email = formData.form.workEmailAddress ? await generateHash(formData.form.workEmailAddress) : '';
+      const officeAddress = JSON.parse(currentFormContext?.currentAddress)?.officeAddress;
+      digitalData.formDetails = {
+        pincode: officeAddress?.pinCode ?? '',
+        city: officeAddress?.city ?? '',
+        state: officeAddress?.state ?? '',
+      };
       Object.assign(digitalData.formDetails, {
         employmentType: formData?.form?.employmentType || currentFormContext?.crmLeadResponse?.employmentType,
         companyName: formData?.form?.companyName,
@@ -176,9 +207,15 @@ function sendSubmitClickEvent(phone, eventType, linkType, formData, journeyState
         selectedCard: formData?.form?.productCode || currentFormContext.crmLeadResponse.productCode,
         annualFee: formData?.form?.joiningandRenewalFee,
       };
-      // digitalData.event = {
-      //   status: formData.cardBenefitsAgreeCheckbox,
-      // };
+      const officeAddress = JSON.parse(currentFormContext?.currentAddress)?.officeAddress;
+      digitalData.formDetails = {
+        pincode: officeAddress?.pinCode ?? '',
+        city: officeAddress?.city ?? '',
+        state: officeAddress?.state ?? '',
+      };
+      digitalData.event = {
+        status: '1',
+      };
       currentFormContext.action = 'confirmation';
       if (window) {
         window.digitalData = digitalData || {};
@@ -186,9 +223,19 @@ function sendSubmitClickEvent(phone, eventType, linkType, formData, journeyState
       currentFormContext.action = 'get this card';
       _satellite.track('submit');
       setTimeout(() => {
-        let currentPageName = 'Select KYC Method';
-        if (formData?.etbFlowSelected === 'on' && formData?.form?.currentAddressToggle === 'off') {
-          currentPageName = 'Confirm & Submit';
+        let currentPageName = PAGE_NAME.ccc['kyc continue'];
+        // page name will differ based on the user and user address changing options.
+        const user = (currentFormContext?.breDemogResponse?.BREFILLER2 === 'D101') ? 'ETB' : 'NTB';
+        const toggledAddressChange = (formData?.form?.currentAddressToggle === 'on');
+        if ((user === 'ETB')) {
+          if (toggledAddressChange) {
+            currentPageName = PAGE_NAME.ccc['kyc continue'];
+          } else {
+            currentPageName = PAGE_NAME.ccc['address continue'];
+          }
+        }
+        if ((user === 'NTB')) {
+          currentPageName = PAGE_NAME.ccc['kyc continue'];
         }
         sendPageloadEvent('CUSTOMER_CARD_SELECTED', formData, currentPageName);
       }, 1000);
@@ -205,9 +252,15 @@ function sendSubmitClickEvent(phone, eventType, linkType, formData, journeyState
         // validation method can't be captured as it is in different portal.
       };
 
-      const cardDeliveryAddress = formData?.form?.cardDeliveryAddressOption2 ? 'Office Address||||' : 'Current Address||||';
+      const cardDeliveryAddress = (formData?.form?.cardDeliveryAddressOption2 || currentFormContext?.radioBtnValues?.deliveryAddress?.cardDeliveryAddressOption2) ? 'Office Address' : 'Current Address';
+      const user = (currentFormContext?.breDemogResponse?.BREFILLER2 === 'D101') ? 'etb' : 'ntb';
+      const addressMap = JSON.parse(currentFormContext.currentAddress);
+      const addressField = (cardDeliveryAddress === 'Office Address') ? addressMap?.officeAddress : addressMap[user];
       digitalData.formDetails = {
         nomineeRelation: cardDeliveryAddress, // Capture Card Delivery Address (Office or Current Address)
+        pincode: addressField?.pinCode,
+        city: addressField?.city,
+        state: addressField?.state,
       };
       if (window) {
         window.digitalData = digitalData || {};
@@ -220,6 +273,9 @@ function sendSubmitClickEvent(phone, eventType, linkType, formData, journeyState
       digitalData.formDetails = {
         languageSelected: currentFormContext.languageSelected,
       };
+      digitalData.event = {
+        status: '1',
+      };
       if (window) {
         window.digitalData = digitalData || {};
       }
@@ -228,20 +284,44 @@ function sendSubmitClickEvent(phone, eventType, linkType, formData, journeyState
     }
     case 'kyc continue': {
       const kyc = (formData?.form?.aadharEKYCVerification && 'Ekyc') || (formData?.form?.aadharBiometricVerification && 'Biometric') || (formData?.form?.officiallyValidDocumentsMethod && 'Other Docs');
+      const user = (currentFormContext?.breDemogResponse?.BREFILLER2 === 'D101') ? 'ETB' : 'NTB';
+      const toggledAddressChange = (formData?.form?.currentAddressToggle === 'on');
       digitalData.formDetails = {
         KYCVerificationMethod: kyc,
+      };
+      digitalData.event = {
+        status: '1',
       };
       if (window) {
         window.digitalData = digitalData || {};
       }
       _satellite.track('submit');
+      setTimeout(() => {
+        const kycPage = {
+          ETB: {
+            Biometric: PAGE_NAME.ccc['address continue'],
+            'Other Docs': PAGE_NAME.ccc['document upload continue'],
+            Ekyc: PAGE_NAME.ccc['i agree'],
+          },
+          NTB: {
+            Biometric: PAGE_NAME.ccc['address continue'],
+            'Other Docs': PAGE_NAME.ccc['address continue'],
+            Ekyc: PAGE_NAME.ccc['i agree'],
+          },
+        };
+        const kycUser = (user === 'ETB' && toggledAddressChange) ? 'ETB' : 'NTB'; // condition to satisfy both usr in address change scenarios
+        const kycContinuePage = kycPage[kycUser][kyc];
+        digitalData.page.pageInfo.pageName = kycContinuePage;
+        sendPageloadEvent('CUSTOMER_BUREAU_OFFER_AVAILABLE', formData, kycContinuePage);
+        currentFormContext.action = eventType;
+      }, 3000);
       break;
     }
 
     case 'aadhaar otp': {
       // UID OR VID  how to capture the value - aadhar in different portal.
       digitalData.event = {
-        status: '',
+        status: '1',
       };
       if (window) {
         window.digitalData = digitalData || {};
@@ -252,12 +332,20 @@ function sendSubmitClickEvent(phone, eventType, linkType, formData, journeyState
 
     case 'document upload continue': {
       digitalData.formDetails = {
-        documentProof: formData?.docUploadDropdown, // documentType
+        documentProof: `Address: ${currentFormContext.documentProofType}`, // documentType
+        addressProof: currentFormContext.documentProofType ?? '',
+        incomeProof: currentFormContext.documentProofType ?? '',
+      };
+      digitalData.event = {
+        status: '1',
       };
       if (window) {
         window.digitalData = digitalData || {};
       }
       _satellite.track('submit');
+      setTimeout(() => {
+        sendPageloadEvent('CUSTOMER_BUREAU_OFFER_AVAILABLE', formData, PAGE_NAME.ccc['address continue']);
+      }, 2000);
       break;
     }
 
@@ -278,6 +366,7 @@ function sendSubmitClickEvent(phone, eventType, linkType, formData, journeyState
       // common both ntb + etb
       digitalData.event = {
         rating: formData?.ratingvalue,
+        status: '1',
       };
       if (window) {
         window.digitalData = digitalData || {};
@@ -297,6 +386,7 @@ function populateResponse(payload, eventType, digitalData) {
       digitalData.page.pageInfo.errorMessage = payload?.status?.errorMessage;
       break;
     }
+    case 'confirm otp':
     case 'check offers':
     case 'document upload continue':
     case 'aadhaar otp':
@@ -357,10 +447,43 @@ function sendErrorAnalytics(errorCode, errorMsg, journeyState, globals) {
 */
 function sendAnalytics(eventType, payload, journeyState, globals) {
   const formData = santizedFormDataWithContext(globals);
+  // eslint-disable-next-line no-param-reassign
+  eventType = (payload?.BRECheckAndFetchDemogResponse) ? 'confirm otp' : eventType;
   if (eventType.includes('page load')) {
     const pageName = eventType.split('-')[1];
     sendPageloadEvent(journeyState, formData, pageName);
   } else {
+    currentFormContext.LEAD_ID = (globals?.functions?.exportData()?.currentFormContext?.leadIdParam?.leadId || currentFormContext?.leadIdParam?.leadId);
+    if (eventType === 'check offers') {
+      const { currentDetails, employmentDetails } = globals.form.corporateCardWizardView.yourDetailsPanel.yourDetailsPage;
+      currentFormContext.currentAddress = JSON.stringify({
+        etb: {
+          city: currentDetails?.currentAddressETB?.newCurentAddressPanel?.newCurentAddressCity?.$value ?? '',
+          pinCode: currentDetails?.currentAddressETB.newCurentAddressPanel?.newCurentAddressPin?.$value ?? '',
+          state: currentDetails?.currentAddressETB?.newCurentAddressPanel?.newCurentAddressState?.$value ?? '',
+        },
+        ntb: {
+          city: currentDetails?.currentAddressNTB?.city?.$value ?? '',
+          pinCode: currentDetails?.currentAddressNTB?.currentAddresPincodeNTB?.$value ?? '',
+          state: currentDetails?.currentAddressNTB?.state?.$value ?? '',
+        },
+        officeAddress: {
+          city: employmentDetails?.officeAddressCity?.$value ?? '',
+          pinCode: employmentDetails?.officeAddressPincode?.$value ?? '',
+          state: employmentDetails?.officeAddressState?.$value ?? '',
+        },
+      });
+    }
+    if (eventType === 'document upload continue') {
+      const dropDown = globals?.form?.corporateCardWizardView?.selectKycPanel?.docUploadETBFlow?.docUploadDropdown;
+      const enumVal = dropDown?.$enum || [];
+      const enumNameVal = dropDown?.$enumNames || [];
+      const map = enumVal?.reduce((acc, key, i) => {
+        acc[key] = enumNameVal[i];
+        return acc;
+      }, {});
+      currentFormContext.documentProofType = map?.[dropDown?.$value] || dropDown?.$value;
+    }
     sendAnalyticsEvent(eventType, payload, journeyState, formData);
   }
 }

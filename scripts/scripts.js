@@ -12,7 +12,56 @@ import {
   loadScript,
 } from './aem.js';
 
+import { getSubmitBaseUrl, setSubmitBaseUrl } from '../blocks/form/constant.js';
+
 const LCP_BLOCKS = []; // add your LCP blocks to the list
+
+const FORM_CONSTANT = [
+  {
+    // SEMI
+    formPath: ['semi', 'smart-emi', 'smart emi', 'smart_emi', 'smartemi'],
+    class: 'semi-form',
+    urlKey: ['semi', 'smart-emi', 'smart emi', 'smartemi'],
+    launchScript: {
+      dev: 'https://assets.adobedtm.com/80673311e435/029b16140ccd/launch-94203efd95a9-staging.min.js',
+      prod: 'https://assets.adobedtm.com/80673311e435/029b16140ccd/launch-39d52f236cd6.min.js',
+      loadTime: 1200,
+    },
+  },
+  {
+    // CC
+    formPath: ['corporate-credit-card', 'corporate_credit_cards', 'corporate credit cards', 'corporatecreditcard'],
+    class: '',
+    urlKey: ['corporate-credit-card', 'corporate_credit_cards', 'corporate credit cards', 'corporatecreditcard'],
+    launchScript: {
+      dev: 'https://assets.adobedtm.com/80673311e435/029b16140ccd/launch-230317469f6b-development.min.js',
+      prod: 'https://assets.adobedtm.com/80673311e435/029b16140ccd/launch-39d52f236cd6.min.js',
+      loadTime: 1200,
+    },
+  },
+  {
+    // NRE NRO
+    formPath: ['nre-nro', 'account-opening-nre-nro'],
+    class: 'nre',
+    urlKey: ['nre-nro', 'account-opening-nre-nro'],
+    launchScript: {
+      dev: 'https://assets.adobedtm.com/80673311e435/029b16140ccd/launch-e17de29eec01-development.min.js',
+      prod: 'https://assets.adobedtm.com/80673311e435/029b16140ccd/launch-39d52f236cd6.min.js',
+      loadTime: 3600,
+    },
+  },
+  {
+    formPath: ['etb-fixed-deposit-cc', 'pvtestfdliencugtest', 'fd-lien-cug-test', 'fdlienprodtest'],
+    class: 'fdlien',
+    urlKey: ['fdlien', 'pvtestfdliencugtest', 'fd-lien-cug-test', 'etb-fixed-deposit-cc', 'fdlienprodtest'],
+    launchScript: {
+      dev: 'https://assets.adobedtm.com/80673311e435/029b16140ccd/launch-a47f215bcdb9-development.min.js',
+      prod: 'https://assets.adobedtm.com/80673311e435/029b16140ccd/launch-39d52f236cd6.min.js',
+      loadTime: 1200,
+    },
+  },
+];
+const ENV = getSubmitBaseUrl()?.includes('dev') ? 'dev' : 'prod';
 
 /**
  * Builds hero block and prepends to main in a new section.
@@ -26,6 +75,18 @@ function buildHeroBlock(main) {
     const section = document.createElement('div');
     section.append(buildBlock('hero', { elems: [picture, h1] }));
     main.prepend(section);
+  }
+}
+
+if ((typeof window !== 'undefined') && (typeof window.location !== 'undefined')) {
+  const queryString = window.location.search;
+  const params = new URLSearchParams(queryString);
+  const isBlueGreenActive = params.get('isBGPrd');
+  // eslint-disable-next-line no-console
+  console.log(isBlueGreenActive);
+  // const isReferrerAllowed = GREEN_ENV.some(hostname => GREEN_ENV.includes(hostname));
+  if (isBlueGreenActive) {
+    setSubmitBaseUrl('https://publish1apsouth1-b80-28920470.prod.hdfc.adobecqms.net');
   }
 }
 
@@ -87,6 +148,14 @@ async function loadEager(doc) {
     if (window.innerWidth >= 900 || sessionStorage.getItem('fonts-loaded')) {
       loadFonts();
     }
+    const pathName = window.location.pathname;
+    FORM_CONSTANT.some((form) => {
+      if (form.formPath.some((el) => pathName.includes(el))) {
+        document.body.classList.add(form.class);
+        return true;
+      }
+      return false;
+    });
   } catch (e) {
     // do nothing
   }
@@ -119,7 +188,14 @@ async function loadLazy(doc) {
 function loadDelayed() {
   // eslint-disable-next-line import/no-cycle
   window.setTimeout(() => import('./delayed.js'), 3000);
-  window.setTimeout(() => loadScript('https://assets.adobedtm.com/80673311e435/029b16140ccd/launch-39d52f236cd6.min.js'), 3600);
+  const pathName = window.location.pathname;
+  FORM_CONSTANT.some((form) => {
+    if (form.urlKey.some((el) => pathName.includes(el))) {
+      window.setTimeout(() => loadScript(form.launchScript[ENV]), form.launchScript.loadTime);
+      return true;
+    }
+    return false;
+  });
   // load anything that can be postponed to the latest here
 }
 

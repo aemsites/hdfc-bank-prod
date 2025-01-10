@@ -1,6 +1,4 @@
-
-//check
-
+// check
 
 import {
   createButton, createFieldWrapper, createLabel, getHTMLRenderType,
@@ -14,7 +12,7 @@ import componentDecorater from './mappings.js';
 import DocBasedFormToAF from './transform.js';
 import transferRepeatableDOM from './components/repeat.js';
 import { handleSubmit } from './submit.js';
-import { getSubmitBaseUrl } from './constant.js';
+import { emailPattern, getSubmitBaseUrl } from './constant.js';
 
 export const DELAY_MS = 0;
 let captchaField;
@@ -223,11 +221,12 @@ function createPlainText(fd) {
 
 function createImage(fd) {
   const field = createFieldWrapper(fd);
+  const imagePath = fd.source || fd.properties['fd:repoPath'] || '';
   const image = `
   <picture>
-    <source srcset="${fd.source}?width=2000&optimize=medium" media="(min-width: 600px)">
-    <source srcset="${fd.source}?width=750&optimize=medium">
-    <img alt="${fd.altText || fd.name}" src="${fd.source}?width=750&optimize=medium">
+    <source srcset="${imagePath}?width=2000&optimize=medium" media="(min-width: 600px)">
+    <source srcset="${imagePath}?width=750&optimize=medium">
+    <img alt="${fd.altText || fd.name}" src="${imagePath}?width=750&optimize=medium">
   </picture>`;
   field.innerHTML = image;
   return field;
@@ -288,7 +287,7 @@ function inputDecorator(field, element) {
       input.disabled = true;
     }
     const fieldType = getHTMLRenderType(field);
-    if (['number', 'date'].includes(fieldType) && (field.displayFormat || field.displayValueExpression)) {
+    if (['number', 'date', 'text', 'email'].includes(fieldType) && (field.displayFormat || field.displayValueExpression)) {
       field.type = fieldType;
       input.setAttribute('edit-value', field.value ?? '');
       input.setAttribute('display-value', field.displayValue ?? '');
@@ -320,6 +319,9 @@ function inputDecorator(field, element) {
     }
     if (field.maxFileSize) {
       input.dataset.maxFileSize = field.maxFileSize;
+    }
+    if (input.type === 'email') {
+      input.pattern = emailPattern;
     }
     setConstraintsMessage(element, field.constraintMessages);
     element.dataset.required = field.required;
@@ -443,6 +445,12 @@ function cleanUp(content) {
   });
 }
 
+function addMapping(formDef) {
+  formDef.properties = formDef.properties || {};
+  formDef.properties.placementFieldMappings = '[{"fieldId":"textinput-e5794cf2a0","fieldName":"discountMSG","placementId":"dps:offer-placement:1959366aeeac9793"}]';
+  formDef.properties.offerCharacteristicMapping = '[{"fieldId":"numberinput-57112102a5","fieldName":"discount","offerAttributeId":"discount"}]';
+}
+
 export default async function decorate(block) {
   let container = block.querySelector('a[href$=".json"]');
   let formDef;
@@ -462,6 +470,7 @@ export default async function decorate(block) {
   let rules = true;
   let form;
   if (formDef) {
+    addMapping(formDef);
     formDef.action = getSubmitBaseUrl() + (formDef.action || '');
     if (isDocumentBasedForm(formDef)) {
       const transform = new DocBasedFormToAF();

@@ -2,3 +2,6 @@ helix-importer-ui
 blocks/form/rules/**/*.js
 blocks/form/rules/formula/index.js
 blocks/form/rules/formula/index.min.js
+scripts/alloy.js
+creditcards/dist-functions/**/*.js
+creditcards/fd-card/launch-dev.min.js

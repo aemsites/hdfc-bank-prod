@@ -67,7 +67,7 @@ export function navigateTo(destinationURL, destinationType) {
     }
   }
   if (validateURL(destinationURL)) {
-    windowParam.open(externalize(destinationURL), param, arg);
+    windowParam.open(destinationURL, param, arg);
   }
 }
 

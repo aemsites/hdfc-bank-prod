@@ -21,7 +21,7 @@ function compare(fieldVal, htmlVal, type) {
   return fieldVal === htmlVal;
 }
 
-async function fieldChanged(payload, form, generateFormRendition) {
+export async function fieldChanged(payload, form, generateFormRendition) {
   const { changes, field: fieldModel } = payload;
   changes.forEach((change) => {
     const {
@@ -51,9 +51,12 @@ async function fieldChanged(payload, form, generateFormRendition) {
         }
         break;
       case 'value':
-        if (['number', 'date'].includes(field.type) && (displayFormat || displayValueExpression)) {
+        if (['number', 'date', 'text', 'email'].includes(field.type) && (displayFormat || displayValueExpression)) {
           field.setAttribute('edit-value', currentValue);
           field.setAttribute('display-value', displayValue);
+          if (document.activeElement !== field) {
+            field.value = displayValue;
+          }
         } else if (fieldType === 'radio-group' || fieldType === 'checkbox-group') {
           field.querySelectorAll(`input[name=${id}]`).forEach((el) => {
             const exists = (Array.isArray(currentValue)
@@ -145,6 +148,7 @@ async function fieldChanged(payload, form, generateFormRendition) {
       case 'valid':
         if (currentValue === true && field?.validity?.customError) {
           field?.setCustomValidity(''); // reset customError in validity
+          updateOrCreateInvalidMsg(field, '');
         }
         break;
       default:
@@ -167,9 +171,8 @@ function handleRuleEngineEvent(e, form, generateFormRendition) {
 function applyRuleEngine(htmlForm, form, captcha) {
   htmlForm.addEventListener('change', (e) => {
     const field = e.target;
-    const {
-      id, value, name, checked,
-    } = field;
+    const { value, name, checked } = field;
+    const { id } = field.closest('.field-wrapper').dataset;
     if ((field.type === 'checkbox' && field.dataset.fieldType === 'checkbox-group')) {
       const val = getCheckboxGroupValue(name, htmlForm);
       const el = form.getElement(name);
@@ -185,6 +188,18 @@ function applyRuleEngine(htmlForm, form, captcha) {
       form.getElement(id).value = value;
     }
     // console.log(JSON.stringify(form.exportData(), null, 2));
+  });
+
+  htmlForm.addEventListener('input', (e) => {
+    const field = e.target;
+    const fieldWrapper = field?.closest('.field-wrapper');
+    if (!fieldWrapper || fieldWrapper.classList.contains('skip-onchange')) return;
+
+    const { id, value } = field;
+    const formElement = form.getElement(id);
+    if (formElement) {
+      formElement.value = value;
+    }
   });
 
   htmlForm.addEventListener('click', async (e) => {

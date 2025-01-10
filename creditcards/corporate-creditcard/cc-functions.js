@@ -21,6 +21,7 @@ import {
   getFormContext,
   getWrappedFormContext,
   firstLastNameValidation,
+  validateFieldLength,
 } from './corporate-creditcardFunctions.js';
 
 import {
@@ -113,4 +114,5 @@ export {
   crmResponseHandler,
   firstLastNameValidation,
   initRestAPIDataSecurityServiceES6,
+  validateFieldLength,
 };

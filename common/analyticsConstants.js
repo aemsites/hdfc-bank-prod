@@ -4,6 +4,11 @@ const data = {
     StepName: 'Identify Yourself',
     linkPosition: 'Form',
   },
+  'confirm otp': {
+    linkType: 'button',
+    StepName: 'Verify With OTP',
+    linkPosition: 'Form',
+  },
   'submit otp': {
     error: '',
   },
@@ -43,7 +48,7 @@ const data = {
   // },
   'start kyc': {
     linkType: 'button',
-    linkName: 'Start KYC',
+    linkName: 'Start VKYC',
     linkPosition: 'Form',
   },
   'submit review': {

@@ -1,4 +1,4 @@
-import { createFormInstance } from './model/afb-runtime.js';
+import { createFormInstanceAsync } from './model/afb-runtime.js';
 import registerCustomFunctions from './functionRegistration.js';
 
 let customFunctionRegistered = false;
@@ -6,21 +6,26 @@ let customFunctionRegistered = false;
 export default class RuleEngine {
   rulesOrder = {};
 
-  constructor(formDef) {
-    this.form = createFormInstance(formDef);
+  async createFormInstance(formDef) {
+    this.form = await createFormInstanceAsync(formDef);
   }
 
   getState() {
     return this.form.getState(true);
   }
+
+  getFieldChanges() {
+    return this.fieldChanges;
+  }
 }
 
 let ruleEngine;
 onmessage = (e) => {
-  function handleMessageEvent(event) {
+  async function handleMessageEvent(event) {
     switch (event.data.name) {
       case 'init':
-        ruleEngine = new RuleEngine(event.data.payload);
+        ruleEngine = new RuleEngine();
+        await ruleEngine.createFormInstance(event.data.payload);
         // eslint-disable-next-line no-case-declarations
         const state = ruleEngine.getState();
         postMessage({
@@ -38,9 +43,9 @@ onmessage = (e) => {
 
   if (!customFunctionRegistered) {
     const { id } = e.data.payload;
-    registerCustomFunctions(id).then(() => {
+    registerCustomFunctions(id).then(async () => {
       customFunctionRegistered = true;
-      handleMessageEvent(e);
+      await handleMessageEvent(e);
     });
   }
 };

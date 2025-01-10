@@ -1,9 +1,12 @@
 {
-   "mappings": [
+  "mappings": [
     "/content/forms/af/hdfc_haf/digital/:/digital/",
-    "/content/hdfc_haf/config.json:/.helix/config.json"
+    "/content/hdfc_haf/config.json:/.helix/config.json",
+    "/content/hdfc_haf/redirects.json:/redirects.json",
+    "/content/forms/af/hdfc_haf/loan-against-assets/smart-emi/:/loan-against-assets/smart-emi/",
+    "/content/forms/af/hdfc_haf/loan-against-assets/smartemi/:/loan-against-assets/smartemi/"
   ],
   "includes": [
-     
+    
   ]
 }

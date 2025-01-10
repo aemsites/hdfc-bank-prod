@@ -17,7 +17,7 @@
  * Adobe permits you to use and modify this file solely in accordance with
  * the terms of the Adobe license agreement accompanying it.
  *************************************************************************/
-// af-core version 0.22.104
+
 import { propertyChange, ExecuteRule, Initialize, RemoveItem, Change, FormLoad, FieldChanged, ValidationComplete, Valid, Invalid, SubmitSuccess, CustomEvent, SubmitError, SubmitFailure, Submit, Save, Reset, RemoveInstance, AddInstance, AddItem, Click } from './afb-events.js';
 import Formula from '../formula/index.js';
 import { format, parseDefaultDate, datetimeToNumber, parseDateSkeleton, numberToDatetime, formatDate, parseDate } from './afb-formatters.min.js';
@@ -157,7 +157,8 @@ const getProperty = (data, key, def) => {
 const isFile = function (item) {
     return (item?.type === 'file' || item?.type === 'file[]') ||
       ((item?.type === 'string' || item?.type === 'string[]') &&
-        (item?.format === 'binary' || item?.format === 'data-url'));
+        (item?.format === 'binary' || item?.format === 'data-url')) ||
+      item?.fieldType === 'file-input';
 };
 const isCheckbox = function (item) {
     const fieldType = item?.fieldType || defaultFieldTypes(item);
@@ -238,6 +239,23 @@ class DataValue {
         return (!enabled && this.$_fields.length);
     }
     get $value() {
+        const formInFileInput = this.$_fields.find(x => {
+            if (isFile(x)) {
+                return x;
+            }
+        });
+        if (formInFileInput && (this.$_fields.every(_ => ['string', 'string[]'].includes(_.type)))) {
+            const attachmentMap = formInFileInput.form._exportDataAttachmentMap;
+            if (attachmentMap && attachmentMap[formInFileInput.id]) {
+                const attachment = attachmentMap[formInFileInput.id];
+                if (Array.isArray(attachment)) {
+                    return attachment.map(item => item.data);
+                }
+                else {
+                    return attachment.data;
+                }
+            }
+        }
         return this.$_value;
     }
     setValue(typedValue, originalValue, fromField) {
@@ -666,33 +684,77 @@ const randomWord = (l) => {
     }
     return ret.join('');
 };
-const getAttachments = (input, excludeUnbound = false) => {
-    const items = input.items || [];
-    return items?.reduce((acc, item) => {
-        if (excludeUnbound && item.dataRef === null) {
-            return acc;
-        }
-        let ret = null;
-        if (item.isContainer) {
-            ret = getAttachments(item, excludeUnbound);
-        }
-        else {
-            if (isFile(item.getState())) {
-                ret = {};
-                const name = item.name || '';
-                const dataRef = (item.dataRef != null)
-                  ? item.dataRef
-                  : (name.length > 0 ? item.name : undefined);
-                if (item.value instanceof Array) {
+const processItem = (item, excludeUnbound, isAsync) => {
+    if (excludeUnbound && item.dataRef === null) {
+        return isAsync ? Promise.resolve(null) : null;
+    }
+    let ret = null;
+    if (item.isContainer) {
+        return isAsync
+          ? readAttachments(item, excludeUnbound).then(res => res)
+          : getAttachments(item, excludeUnbound);
+    }
+    else {
+        if (isFile(item.getState())) {
+            ret = {};
+            const name = item.name || '';
+            const dataRef = (item.dataRef != null)
+              ? item.dataRef
+              : (name.length > 0 ? item.name : undefined);
+            if (item.value instanceof Array) {
+                if (item.type === 'string[]') {
+                    if (isAsync) {
+                        return item.serialize().then(serializedFiles => {
+                            ret[item.id] = serializedFiles.map((x) => {
+                                return { ...x, 'dataRef': dataRef };
+                            });
+                            return ret;
+                        });
+                    }
+                    else {
+                        ret[item.id] = item.value.map((x) => {
+                            return { ...x, 'dataRef': dataRef };
+                        });
+                    }
+                }
+                else {
                     ret[item.id] = item.value.map((x) => {
                         return { ...x, 'dataRef': dataRef };
                     });
                 }
-                else if (item.value != null) {
+            }
+            else if (item.value != null) {
+                if (item.type === 'string') {
+                    if (isAsync) {
+                        return item.serialize().then(serializedFile => {
+                            ret[item.id] = { ...serializedFile[0], 'dataRef': dataRef };
+                            return ret;
+                        });
+                    }
+                    else {
+                        ret[item.id] = { ...item.value, 'dataRef': dataRef };
+                    }
+                }
+                else {
                     ret[item.id] = { ...item.value, 'dataRef': dataRef };
                 }
             }
         }
+    }
+    return isAsync ? Promise.resolve(ret) : ret;
+};
+const readAttachments = async (input, excludeUnbound = false) => {
+    const items = input.items || [];
+    return items.reduce(async (accPromise, item) => {
+        const acc = await accPromise;
+        const ret = await processItem(item, excludeUnbound, true);
+        return Object.assign(acc, ret);
+    }, Promise.resolve({}));
+};
+const getAttachments = (input, excludeUnbound = false) => {
+    const items = input.items || [];
+    return items.reduce((acc, item) => {
+        const ret = processItem(item, excludeUnbound, false);
         return Object.assign(acc, ret);
     }, {});
 };
@@ -1819,6 +1881,9 @@ class Scriptable extends BaseNode {
         let updates;
         if (node) {
             updates = this.ruleEngine.execute(node, this.getExpressionScope(), context, false, eString);
+            if (updates instanceof Promise) {
+                this.form.addPromises(updates);
+            }
         }
         if (typeof updates !== 'undefined' && updates != null) {
             this.applyUpdates(updates);
@@ -2656,10 +2721,10 @@ const urlEncoded = (data) => {
 const submit = async (context, success, error, submitAs = 'multipart/form-data', input_data = null, action = '', metadata = null) => {
     const endpoint = action || context.form.action;
     let data = input_data;
+    const attachments = await readAttachments(context.form, true);
     if (typeof data != 'object' || data == null) {
-        data = context.form.exportData();
+        data = context.form.exportData(attachments);
     }
-    const attachments = getAttachments(context.form, true);
     let submitContentType = submitAs;
     const submitDataAndMetaData = { 'data': data, ...metadata };
     let formData = submitDataAndMetaData;
@@ -2706,19 +2771,19 @@ const multipartFormData = (data, attachments) => {
 const createAction = (name, payload = {}, dispatch = false) => {
     switch (name) {
         case 'change':
-            return new Change(payload, dispatch);
+            return new Change(payload);
         case 'submit':
-            return new Submit(payload, dispatch);
+            return new Submit(payload);
         case 'save':
-            return new Save(payload, dispatch);
+            return new Save(payload);
         case 'click':
-            return new Click(payload, dispatch);
+            return new Click(payload);
         case 'addItem':
             return new AddItem(payload);
         case 'removeItem':
             return new RemoveItem(payload);
         case 'reset':
-            return new Reset(payload, dispatch);
+            return new Reset(payload);
         case 'addInstance':
             return new AddInstance(payload);
         case 'removeInstance':
@@ -2728,7 +2793,7 @@ const createAction = (name, payload = {}, dispatch = false) => {
         case 'valid':
             return new Valid(payload);
         case 'initialize':
-            return new Initialize(payload, dispatch);
+            return new Initialize(payload);
         default:
             console.error('invalid action');
     }
@@ -3006,8 +3071,7 @@ class FunctionRuntimeImpl {
                         success = valueOf(args[4]);
                         error = valueOf(args[5]);
                     }
-                    request(interpreter.globals, uri, httpVerb, payload, success, error, headers);
-                    return {};
+                    return request(interpreter.globals, uri, httpVerb, payload, success, error, headers);
                 },
                 _signature: []
             },
@@ -3086,7 +3150,17 @@ class FunctionRuntimeImpl {
                             interpreter.globals.form.dispatch(event);
                         }
                         else {
-                            interpreter.globals.form.getElement(element.$id).dispatch(event);
+                            const dispatchEventOnElement = (element, event, interpreter) => {
+                                interpreter.globals.form.getElement(element.$id).dispatch(event);
+                            };
+                            if (Array.isArray(element) && element.length > 0 && typeof element.$id === 'undefined') {
+                                element.forEach(el => {
+                                    dispatchEventOnElement(el, event, interpreter);
+                                });
+                            }
+                            else {
+                                dispatchEventOnElement(element, event, interpreter);
+                            }
                         }
                     }
                     return {};
@@ -3150,6 +3224,8 @@ class Form extends Container {
     _fields = {};
     _ids;
     _invalidFields = [];
+    _exportDataAttachmentMap = {};
+    promises = [];
     _captcha = null;
     constructor(n, fieldFactory, _ruleEngine, _eventQueue = new EventQueue(), logLevel = 'off', mode = 'create') {
         super(n, { fieldFactory: fieldFactory, mode });
@@ -3172,6 +3248,17 @@ class Form extends Container {
         if (mode === 'create') {
             this.queueEvent(new FormLoad());
         }
+    }
+    addPromises(updates) {
+        this.promises.push(updates);
+    }
+    async waitForPromises() {
+        let length = 0;
+        while (this.promises.length > length) {
+            length = this.promises.length;
+            await Promise.all(this.promises);
+        }
+        this.promises = [];
     }
     _applyDefaultsInModel() {
         const current = this.specVersion;
@@ -3214,8 +3301,11 @@ class Form extends Container {
         this.syncDataAndFormModel(this.getDataNode());
         this._eventQueue.runPendingQueue();
     }
-    exportData() {
-        return this.getDataNode()?.$value;
+    exportData(attachmentSerializedMap = {}) {
+        this._exportDataAttachmentMap = attachmentSerializedMap;
+        const finalData = this.getDataNode()?.$value;
+        this._exportDataAttachmentMap = {};
+        return finalData;
     }
     setAdditionalSubmitMetadata(metadata) {
         this.additionalSubmitMetadata = { ...this.additionalSubmitMetadata, ...metadata };
@@ -3428,7 +3518,7 @@ class Form extends Container {
     }
     submit(action, context) {
         const validate_form = action?.payload?.validate_form;
-        if (!validate_form || this.validate().length === 0) {
+        if (validate_form === false || this.validate().length === 0) {
             const payload = action?.payload || {};
             const successEventName = payload?.success ? payload?.success : 'submitSuccess';
             const failureEventName = payload?.error ? payload?.error : 'submitError';
@@ -4615,7 +4705,7 @@ class DateField extends Field {
         }
         else {
             if (this._jsonModel.editFormat !== 'short' && this._jsonModel.editFormat !== 'date|short') {
-                const parsedDate = parseDate(value, this.locale, this._jsonModel.editFormat) || parseDate(value, this.locale, 'yyyy-MM-dd');
+                const parsedDate = parseDate(value, 'en-GB', this._jsonModel.editFormat) || parseDate(value, 'en-GB', 'yyyy-MM-dd');
                 if (parsedDate instanceof Date) {
                     super.value = formatDate(parsedDate, this.locale, this._dataFormat);
                 }
@@ -4669,7 +4759,7 @@ class Button extends Field {
             return;
         }
         if (this._jsonModel.buttonType === 'submit') {
-            return this.form.dispatch(new Submit());
+            return this.form.dispatch(new Submit({ validate_form: true }));
         }
         if (this._jsonModel.buttonType === 'reset') {
             return this.form.dispatch(new Reset());
@@ -4754,23 +4844,40 @@ class FormFieldFactoryImpl {
     }
 }
 const FormFieldFactory = new FormFieldFactoryImpl();
+const createFormInstanceHelper = (formModel, logLevel, fModel) => {
+    let f = fModel;
+    if (f == null) {
+        formModel = sitesModelToFormModel(formModel);
+        f = new Form({ ...formModel }, FormFieldFactory, new RuleEngine(), new EventQueue(new Logger(logLevel)), logLevel);
+    }
+    const formData = formModel?.data;
+    if (formData) {
+        f.importData(formData);
+    }
+    return f;
+};
 const createFormInstance = (formModel, callback, logLevel = 'error', fModel = undefined) => {
     try {
-        let f = fModel;
-        {
-            if (f == null) {
-                formModel = sitesModelToFormModel(formModel);
-                f = new Form({ ...formModel }, FormFieldFactory, new RuleEngine(), new EventQueue(new Logger(logLevel)), logLevel);
-            }
-        }
-        const formData = formModel?.data;
-        if (formData) {
-            f.importData(formData);
-        }
+        const f = createFormInstanceHelper(formModel, logLevel, fModel);
         if (typeof callback === 'function') {
             callback(f);
         }
         f.getEventQueue().runPendingQueue();
+        return f;
+    }
+    catch (e) {
+        console.error(`Unable to create an instance of the Form ${e}`);
+        throw new Error(e);
+    }
+};
+const createFormInstanceAsync = async (formModel, callback, logLevel = 'error', fModel = undefined) => {
+    try {
+        const f = createFormInstanceHelper(formModel, logLevel, fModel);
+        if (typeof callback === 'function') {
+            callback(f);
+        }
+        f.getEventQueue().runPendingQueue();
+        await f.waitForPromises();
         return f;
     }
     catch (e) {
@@ -4850,4 +4957,4 @@ const registerFunctions = (functions) => {
     FunctionRuntime.registerFunctions(functions);
 };
 
-export { createFormInstance, fetchForm, registerFunctions, restoreFormInstance, validateFormData, validateFormInstance };
+export { createFormInstance, createFormInstanceAsync, fetchForm, registerFunctions, restoreFormInstance, validateFormData, validateFormInstance };

@@ -42,13 +42,13 @@ const fetchFiller4 = (mobileMatch, kycStatus, journeyType, kycFillers) => {
     switch (kycStatus) {
       case 'aadhaar':
         // eslint-disable-next-line no-nested-ternary
-         if (journeyType === 'NTB') {
+        if (journeyType === 'NTB') {
           filler4Value = `VKYC${getCurrentDateAndTime(3)}`;
         }
         if (journeyType === 'ETB') {
           filler4Value = (mobileMatch === 'y') ? `NVKYC${getCurrentDateAndTime(3)}` : `VKYC${getCurrentDateAndTime(3)}`;
         }
-        //filler4Value = `${(mobileMatch === 'y') ? 'NVKYC' : 'VKYC'}${getCurrentDateAndTime(3)}`;
+        // filler4Value = `${(mobileMatch === 'y') ? 'NVKYC' : 'VKYC'}${getCurrentDateAndTime(3)}`;
 
         break;
       case 'bioKYC':
@@ -96,7 +96,7 @@ const createDapRequestObj = (globals) => {
   };
 
   const kycFillers = kycFillCheck(customerInfo, kycFill);
-  const journeyType = formContextCallbackData?.breDemogResponse?.BREFILLER2 === 'D101' ? 'ETB' : 'NTB';
+  const journeyType = (formContextCallbackData?.breDemogResponse?.BREFILLER2 === 'D101' || formContextCallbackData?.breDemogResponse?.BREFILLER2 === 'D106') ? 'ETB' : 'NTB';
   const mobileMatch = globals.functions.exportData()?.aadhaar_otp_val_data?.result?.mobileValid !== undefined;
   const biometricStatus = kycFillers ?? '';
   const ekycConsent = ((kycFillers === 'aadhaar')) ? `${getCurrentDateAndTime(3)}YEnglishxeng1x0` : '';

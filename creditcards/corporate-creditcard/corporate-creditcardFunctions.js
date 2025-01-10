@@ -843,7 +843,7 @@ function checkMode(globals) {
         globals,
       );
     }
-  } if ((idcomVisit === 'DebitCard') || (idcomVisit === 'CreditCard') || (idcomVisit === 'NetBanking')) { // debit card or credit card or net banking flow
+  } if ((idcomVisit === 'DebitCard') || (idcomVisit === 'CreditCard') || (idcomVisit === 'NetBanking') || (idcomVisit === 'AadhaarOTP')) { // debit card or credit card or net banking flow
     const resultPanel = formUtil(globals, globals.form.resultPanel);
     resultPanel.visible(false);
     globals.functions.setProperty(globals.form.otpPanel, { visible: false });
@@ -996,13 +996,56 @@ const firstLastNameValidation = (fn, ln, globals) => {
     lName: 'Please enter a valid Last Name',
   };
   const MAX_LENGTH = 23;
-  const MIN_LENGTH = 3;
-  if (fn && (!((fn?.length <= MAX_LENGTH) && (fn?.length > MIN_LENGTH)))) {
-    globals.functions.markFieldAsInvalid('$form.corporateCardWizardView.yourDetailsPanel.yourDetailsPage.personalDetails.firstName', invalidMsg.fName, { useQualifiedName: true });
+  const MIN_LENGTH_FN = 3;
+  const MIN_LENGTH_LN = 1;
+  const { personalDetails } = globals.form.corporateCardWizardView.yourDetailsPanel.yourDetailsPage;
+  const validate = (str, max, min) => (str && (!((str?.length <= max) && (str?.length >= min)))) || (str === '');
+  const fnIsInvalid = validate(fn, MAX_LENGTH, MIN_LENGTH_FN);
+  const lnIsInvalid = validate(ln, MAX_LENGTH, MIN_LENGTH_LN);
+  if (fnIsInvalid) {
+    globals.functions.markFieldAsInvalid(personalDetails.firstName.$qualifiedName, invalidMsg.fName, { useQualifiedName: true });
+    // globals.functions.setProperty(personalDetails.firstName, { valid: false });
   }
-  if (ln && (!((ln?.length <= MAX_LENGTH) && (ln?.length > MIN_LENGTH)))) {
-    globals.functions.markFieldAsInvalid('$form.corporateCardWizardView.yourDetailsPanel.yourDetailsPage.personalDetails.lastName', invalidMsg.lName, { useQualifiedName: true });
+  if (lnIsInvalid) {
+    globals.functions.markFieldAsInvalid(personalDetails.lastName.$qualifiedName, invalidMsg.lName, { useQualifiedName: true });
+    // globals.functions.setProperty(personalDetails.lastName, { valid: false });
   }
+  const fnlnIsValid = (!lnIsInvalid && !fnIsInvalid);
+  if (fnlnIsValid) {
+    globals.functions.markFieldAsInvalid(personalDetails.firstName.$qualifiedName, '', { useQualifiedName: true });
+    globals.functions.markFieldAsInvalid(personalDetails.lastName.$qualifiedName, '', { useQualifiedName: true });
+  }
+};
+
+/**
+ * Validates the length of a text field value and marks the field as invalid if it falls outside the specified range.
+ *
+ * @param {object} arg - The field object containing the value to validate.
+ * @param {number} minLength - The minimum allowed length of the field value.
+ * @param {number} maxLength - The maximum allowed length of the field value.
+ * @param {string} errorMessage - The error message to display if validation fails.
+ * @param {object} globals - The global scope containing utility functions like setProperty and markFieldAsInvalid.
+ * @returns {Promise<object>} - Resolves with an object containing the validation status (`valid`).
+ */
+const validateFieldLength = (arg, minLength, maxLength, errorMessage, globals) => {
+  const yourDetails = globals.form.corporateCardWizardView.yourDetailsPanel.yourDetailsPage;
+  const stringLength = (String(arg.$value)?.trim())?.length;
+  let isValid = ((stringLength >= minLength) && (stringLength <= maxLength));
+  if ((arg.$name === 'newCurentAddressLine3') && (yourDetails.currentDetails.currentAddressETB.currentAddressToggle.$value === 'on') && (arg.$value === '')) {
+    isValid = true;
+  }
+  if ((yourDetails.currentDetails.currentAddressNTB.permanentAddress.permanentAddressToggle.$value === 'on') && (arg.$value === '') && ((arg.$name === 'permanentAddressLine1') || (arg.$name === 'permanentAddressLine2') || (arg.$name === 'permanentAddressLine3'))) {
+    isValid = true;
+  }
+  if (((arg.$name === 'permanentAddressLine3') || (arg.$name === 'officeAddressLine3') || (arg.$name === 'addressLine3')) && (arg.$value === '')) {
+    isValid = true;
+  }
+  globals.functions.setProperty(arg, { valid: isValid });
+  globals.functions.markFieldAsInvalid(arg.$qualifiedName, `${isValid ? '' : errorMessage}`, { useQualifiedName: true });
+  const response = {
+    valid: isValid,
+  };
+  return Promise.resolve(response);
 };
 
 export {
@@ -1028,4 +1071,5 @@ export {
   getFormContext,
   getWrappedFormContext,
   firstLastNameValidation,
+  validateFieldLength,
 };

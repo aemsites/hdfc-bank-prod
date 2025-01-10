@@ -44,3 +44,9 @@
     font-style: normal;
     font-display: swap;
 }
+
+/* Open Sans - Regular */
+@font-face {
+    font-family: 'Open Sans';
+    src: url('../fonts/OpenSans-Regular.ttf') format('truetype');
+}

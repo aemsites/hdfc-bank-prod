@@ -2,7 +2,7 @@
  * Displays a loader with optional loading text.
  * @param {string} loadingText - The loading text to display (optional).
  */
-import { decryptDataES6, initRestAPIDataSecurityServiceES6, invokeRestAPIWithDataSecurity } from './apiDataSecurity.js';
+import { decryptDataES6, invokeRestAPIWithDataSecurity } from './apiDataSecurity.js';
 
 import { ENV as env } from './constants.js';
 
@@ -25,6 +25,12 @@ function hideLoaderGif() {
   }
 }
 
+function delay(ms) {
+  return new Promise((resolve) => {
+    setTimeout(() => resolve(), ms);
+  });
+}
+
 /**
 * Initiates an http call with JSON payload to the specified URL using the specified method.
  *
@@ -34,9 +40,10 @@ function hideLoaderGif() {
  * @param {boolean} [loader=false] - Whether to hide the loader GIF after the response is received (default is false).
  * @returns {Promise<*>} - A promise that resolves to the JSON response from the server.
  */
-// eslint-disable-next-line default-param-last
+
 async function fetchJsonResponse(url, payload, method, loader = false) {
   try {
+    const currentDate = new Date();
     if (env === 'dev') {
       return fetch(url, {
         method,
@@ -45,6 +52,8 @@ async function fetchJsonResponse(url, payload, method, loader = false) {
         headers: {
           'Content-type': 'text/plain',
           Accept: 'application/json',
+          iat: typeof window !== 'undefined' ? btoa(currentDate.getTime()) : '',
+
         },
       })
         .then((res) => {
@@ -68,6 +77,61 @@ async function fetchJsonResponse(url, payload, method, loader = false) {
     const decryptedResult = await decryptDataES6(result, responseObj.secret);
     if (loader) hideLoaderGif();
     return JSON.parse(decryptedResult);
+  } catch (error) {
+  // eslint-disable-next-line no-console
+    console.error('Error in fetching JSON response:', error);
+    throw error;
+  }
+}
+
+/**
+* Initiates an http call with JSON payload to the specified URL using the specified method with delay in returning response.
+ *
+ * @param {string} url - The URL to which the request is sent.
+ * @param {object} payload - The data payload to send with the request.
+ * @param {string} [method='POST'] - The HTTP method to use for the request (default is 'POST').
+ * @param {number} timeInMs - delay time in milli seconds.
+ * @param {boolean} [loader=false] - Whether to hide the loader GIF after the response is received (default is false).
+ * @returns {Promise<*>} - A promise that resolves to the JSON response from the server.
+ */
+
+async function fetchJsonResponseWithDelay(url, payload, method, timeInMs, loader = false) {
+  try {
+    const currentDate = new Date();
+    if (env === 'dev') {
+      return fetch(url, {
+        method,
+        body: payload ? JSON.stringify(payload) : null,
+        mode: 'cors',
+        headers: {
+          'Content-type': 'text/plain',
+          Accept: 'application/json',
+          iat: typeof window !== 'undefined' ? btoa(currentDate.getTime()) : '',
+        },
+      })
+        .then((res) => {
+          if (loader) hideLoaderGif();
+          return res.json();
+        });
+    }
+    const responseObj = await invokeRestAPIWithDataSecurity(payload);
+    const response = await fetch(url, {
+      method,
+      body: responseObj.dataEnc,
+      mode: 'cors',
+      headers: {
+        'Content-type': 'text/plain',
+        Accept: 'text/plain',
+        'X-Enckey': responseObj.keyEnc,
+        'X-Encsecret': responseObj.secretEnc,
+      },
+    });
+    const result = await response.text();
+    const decryptedResult = await decryptDataES6(result, responseObj.secret);
+    const parsedResult = JSON.parse(decryptedResult);
+    await delay(timeInMs);
+    if (loader) hideLoaderGif();
+    return parsedResult;
   } catch (error) {
     console.error('Error in fetching JSON response:', error);
     throw error;
@@ -138,6 +202,7 @@ async function fetchIPAResponse(url, payload, method, ipaDuration, ipaTimer, loa
 
     return result;
   } catch (error) {
+    // eslint-disable-next-line no-console
     console.error('Error in fetching IPA response:', error);
     throw error;
   }
@@ -184,6 +249,7 @@ async function getJsonResponse(url, payload, method = 'POST') {
     const decryptedResult = await decryptDataES6(result, responseObj.secret);
     return JSON.parse(decryptedResult);
   } catch (error) {
+    // eslint-disable-next-line no-console
     console.error('Error in fetching JSON response:', error);
     throw error;
   }
@@ -278,6 +344,110 @@ const chainedFetchAsyncCall = async (apiUrl, method, payloadArray, payloadType) 
   return fileResponses;
 };
 
+const fetchRecursiveResponse = async (
+  source,
+  url,
+  payload,
+  method,
+  duration,
+  timer,
+  fieldName,
+  loader = false,
+  startTime = Date.now(),
+) => {
+  const getFieldValue = (obj, fieldArray) => fieldArray.reduce((acc, curr) => (acc && acc[curr] !== undefined ? acc[curr] : undefined), obj);
+  const encryptionInfo = {};
+  try {
+    let body;
+    let headers = {
+      'Content-Type': 'text/plain',
+      Accept: 'application/json',
+    };
+
+    // Handle encryption for non-dev environments
+    if (env !== 'dev') {
+      const responseObj = await invokeRestAPIWithDataSecurity(payload);
+      encryptionInfo.secret = responseObj.secret;
+      body = responseObj.dataEnc;
+      headers = {
+        ...headers,
+        Accept: 'text/plain',
+        'X-Enckey': responseObj.keyEnc,
+        'X-Encsecret': responseObj.secretEnc,
+      };
+    } else {
+      body = payload ? JSON.stringify(payload) : null;
+    }
+
+    const res = await fetch(url, {
+      method,
+      body,
+      mode: 'cors',
+      headers,
+    });
+
+    // Handle response based on environment
+    let response;
+    if (env === 'dev') {
+      response = await res.json();
+    } else {
+      const encryptedResponse = await res.text();
+      const decryptedResponse = await decryptDataES6(encryptedResponse, encryptionInfo.secret);
+      response = JSON.parse(decryptedResponse);
+    }
+    const fieldValue = getFieldValue(response, fieldName);
+
+    // Check for base case conditions
+    switch (source) {
+      case 'ipa':
+        if (fieldValue && fieldValue !== '' && fieldValue !== 'null' && fieldValue !== 'undefined' && fieldValue?.length !== 0) {
+          if (loader) hideLoaderGif();
+          return response;
+        }
+        break;
+      case 'customerId':
+        if (fieldValue === 'SUCCESS' || fieldValue === 'FAILURE') {
+          if (loader) hideLoaderGif();
+          return response;
+        }
+        break;
+      default:
+        break;
+    }
+
+    // Check if the timeout has been reached
+    const elapsedTime = (Date.now() - startTime) / 1000;
+    if (elapsedTime >= duration) {
+      if (loader) hideLoaderGif();
+      return response;
+    }
+
+    // Wait for the specified timer duration before the next recursive call
+    await new Promise((resolve) => {
+      setTimeout(() => {
+        resolve();
+      }, timer * 1000);
+    });
+
+    // Recursive call with updated parameters
+    return await fetchRecursiveResponse(
+      source,
+      url,
+      payload,
+      method,
+      duration,
+      timer,
+      fieldName,
+      loader,
+      startTime,
+    );
+  } catch (error) {
+    if (loader) hideLoaderGif();
+    console.error('Error fetching data:', error);
+    throw error;
+  }
+};
+
 export {
   restAPICall,
   getJsonResponse,
@@ -287,4 +457,6 @@ export {
   fetchJsonResponse,
   fetchIPAResponse,
   chainedFetchAsyncCall,
+  fetchRecursiveResponse,
+  fetchJsonResponseWithDelay,
 };
