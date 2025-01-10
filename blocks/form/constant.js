@@ -18,6 +18,7 @@ export const defaultErrorMessages = {
 let submitBaseUrl = 'https://applyonline.hdfcbank.com';
 
 const localDev = ['aem.live', 'aem.page', 'localhost', 'hlx.live', 'hlx.page'];
+
 const mainProd = ['hdfc-bank-prod'];
 
 function isLocalDev() {
@@ -38,7 +39,7 @@ function isMainProd() {
 }
 
 if (isLocalDev()) {
-  submitBaseUrl = 'https://applyonlinedev.hdfcbank.com';
+  submitBaseUrl = 'https://hdfc-dev-04.adobecqms.net';
 }
 
 export function setSubmitBaseUrl(url) {
