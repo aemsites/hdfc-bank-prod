@@ -62,6 +62,7 @@ async function fetchJsonResponse(url, payload, method, loader = false) {
         });
     }
     const responseObj = await invokeRestAPIWithDataSecurity(payload);
+    console.log(responseObj);
     const response = await fetch(url, {
       method,
       body: responseObj.dataEnc,
@@ -73,6 +74,7 @@ async function fetchJsonResponse(url, payload, method, loader = false) {
         'X-Encsecret': responseObj.secretEnc,
       },
     });
+    console.log(response);
     const result = await response.text();
     const decryptedResult = await decryptDataES6(result, responseObj.secret);
     if (loader) hideLoaderGif();

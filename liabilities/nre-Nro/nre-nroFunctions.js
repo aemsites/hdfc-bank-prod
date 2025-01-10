@@ -2,6 +2,7 @@
 import {
   createJourneyId,
   nreNroInvokeJourneyDropOffByParam,
+  invokeJourneyDropOff,
   invokeJourneyDropOffUpdate,
   postIdCommRedirect,
 } from './nre-nro-journey-utils.js';
@@ -506,6 +507,20 @@ const getCountryCodes = (dropdown) => {
 };
 
 /**
+ * Validate lgCode.
+ * @param {Object} globals
+*/
+function validateLGCode(lgCode, globals){
+  const specialCharRegex = /[^a-zA-Z0-9\s]/;
+  const inputValue = lgCode.$value;
+   // Check if the last character is a special character
+   if (specialCharRegex.test(inputValue.slice(-1))) {
+    // Remove the last character if it's a special character
+    globals.functions.setProperty(lgCode, { value : inputValue.slice(0, -1)});
+  }
+}
+
+/**
  * Starts the Nre_Nro OTPtimer for resending OTP.
  * @param {Object} globals - The global object containing necessary data for DAP request.
 */
@@ -585,28 +600,39 @@ function otpValidationNRE(mobileNumber, pan, dob, otpNumber, globals) {
 function setupBankUseSection(mainBankUsePanel, globals) {
   /* eslint-disable prefer-destructuring */
   const urlParams = new URLSearchParams(window.location.search);
+  let caseInsensitiveUrlParams = new URLSearchParams();;
+  for (const [name, value] of urlParams) {
+    caseInsensitiveUrlParams.append(name.toUpperCase(), value);
+  }
   const utmParams = {};
   const lgCode = mainBankUsePanel.lgCode;
   const lcCode = mainBankUsePanel.lcCode;
   const toggle = mainBankUsePanel.bankUseToggle;
   const resetAllBtn = mainBankUsePanel.resetAllBtn;
-  // globals.functions.setProperty(toggle, { checked: false });
-  if (urlParams.size > 0) {
-    ['lgCode', 'lcCode'].forEach((param) => {
-      const value = urlParams.get(param);
+  const specialCharRegex = /[^a-zA-Z0-9\s]/;
+
+  if (caseInsensitiveUrlParams.size > 0) {
+    ['LGCODE', 'LCCODE'].forEach((param) => {
+      const value = caseInsensitiveUrlParams.get(param);
       if (value) {
-        utmParams[param] = value;
+        utmParams[param] = value.replace(specialCharRegex, '');
       }
     });
 
-    globals.functions.setProperty(lgCode, { value: utmParams.lgCode });
-    globals.functions.setProperty(lcCode, { value: utmParams.lcCode });
+    if(Object.keys(utmParams).length > 0){
+      globals.functions.setProperty(toggle, { checked: 'on' });
+      globals.functions.setProperty(lgCode, { enabled: false });
+      globals.functions.setProperty(lgCode, { value: utmParams.LGCODE });
+      globals.functions.setProperty(toggle, { enabled: false });
+    } else{
+      globals.functions.setProperty(toggle, { enabled: true });
+    }
   } else {
-    globals.functions.setProperty(lcCode, { value: 'NRI INSTASTP' });
+    globals.functions.setProperty(toggle, { enabled: true });
   }
   globals.functions.setProperty(resetAllBtn, { enabled: false });
-  globals.functions.setProperty(toggle, { enabled: true });
   globals.functions.setProperty(lcCode, { enabled: false });
+  globals.functions.setProperty(lcCode, { value: 'NRI INSTASTP' });
 }
 
 async function showFinancialDetails(financialDetails, response, occupation, globals) {
@@ -813,6 +839,7 @@ function multiCustomerId(response, selectAccount, singleAccountCust, multipleAcc
   // globals.functions.setProperty(globals.form.wizardPanel.wizardFragment.wizardNreNro.selectAccount.multipleAccounts.multipleAccountRepeatable[0]?.AccountNumber, { value: accountDetailsList[0].accountNumber });
   if (responseLength > 1) {
     setTimeout(() => {
+      invokeJourneyDropOff('CUSTOMER_ELIGIBILITY_SUCCESS', currentFormContext?.mobileNumber ?? '', globals);
       sendAnalytics('page load_Step 3 - Select Account', {}, 'CUSTOMER_ELIGIBILITY_SUCCESS', globals);
     }, 1000);
     globals.functions.setProperty(singleAccountCust, { visible: false });
@@ -843,6 +870,7 @@ function multiCustomerId(response, selectAccount, singleAccountCust, multipleAcc
     });
   } else {
     setTimeout(() => {
+      invokeJourneyDropOff('CUSTOMER_ELIGIBILITY_SUCCESS', currentFormContext?.mobileNumber ?? '', globals);
       sendAnalytics('page load_Step 3 - Account Type', {}, 'CUSTOMER_ELIGIBILITY_SUCCESS', globals);
     }, 1000);
     globals.functions.setProperty(globals.form.wizardPanel.MultiAccoCountinue, { visible: false });
@@ -1791,28 +1819,29 @@ function setTerritoryValue() {
 }
 
 async function getEmployerNameFromMDM(employerCode){
-    const finalURL = `/content/hdfc_commonforms/api/mdm.INSTA.COMPANY_CODE.COMPANYCODE-${employerCode}.json`;
-    try{
-      const response = await getJsonResponse(urlPath(finalURL), null, 'GET');
-        if (!response || response.length === 0) {
-          console.warn('No response data received.');
-          return '';
-        }
-  
-        const employerName = response.length === 1
-        ? response[0].COMPANYNAME
-        : response.find((item) => item.COMPANYCODE === employerCode.toString()).COMPANYNAME;
-  
-        if (employerName) {
-          return employerName
-        } else {
-          console.warn('No matching employer name found for the employer code.');
-          return '';
-        }
-      } catch(error){
-        console.error('Error while getting employer name :', error);
-        return ''
+  const finalURL = `/content/hdfc_commonforms/api/mdm.INSTA.COMPANY_CODE.COMPANYCODE-${employerCode}.json`;
+  try{
+    if(isNullOrEmpty(employerCode)) return '';
+    const response = await getJsonResponse(urlPath(finalURL), null, 'GET');
+      if (!response || response.length === 0) {
+        console.warn('No response data received.');
+        return '';
       }
+
+      const employerName = response.length === 1
+      ? response[0].COMPANYNAME
+      : response.find((item) => item.COMPANYCODE === employerCode.toString()).COMPANYNAME;
+
+      if (employerName) {
+        return employerName
+      } else {
+        console.warn('No matching employer name found for the employer code.');
+        return '';
+      }
+    } catch(error){
+      console.error('Error while getting employer name :', error);
+      return ''
+    }
 }
 
 export {
@@ -1856,4 +1885,5 @@ export {
   selectVarient,
   setAMBValue,
   setTerritoryValue,
+  validateLGCode,
 };
