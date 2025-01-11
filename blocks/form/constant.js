@@ -29,7 +29,7 @@ function isLocalDev() {
 }
 
 if (isLocalDev()) {
-  submitBaseUrl = 'https://applyonlinedev.hdfcbank.com';
+  submitBaseUrl = 'https://applyonlinestage.hdfcbank.com';
 }
 
 export function setSubmitBaseUrl(url) {
