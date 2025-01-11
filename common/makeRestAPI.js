@@ -62,7 +62,6 @@ async function fetchJsonResponse(url, payload, method, loader = false) {
         });
     }
     const responseObj = await invokeRestAPIWithDataSecurity(payload);
-    console.log(responseObj);
     const response = await fetch(url, {
       method,
       body: responseObj.dataEnc,
@@ -74,66 +73,10 @@ async function fetchJsonResponse(url, payload, method, loader = false) {
         'X-Encsecret': responseObj.secretEnc,
       },
     });
-    console.log(response);
     const result = await response.text();
     const decryptedResult = await decryptDataES6(result, responseObj.secret);
     if (loader) hideLoaderGif();
     return JSON.parse(decryptedResult);
-  } catch (error) {
-  // eslint-disable-next-line no-console
-    console.error('Error in fetching JSON response:', error);
-    throw error;
-  }
-}
-
-/**
-* Initiates an http call with JSON payload to the specified URL using the specified method with delay in returning response.
- *
- * @param {string} url - The URL to which the request is sent.
- * @param {object} payload - The data payload to send with the request.
- * @param {string} [method='POST'] - The HTTP method to use for the request (default is 'POST').
- * @param {number} timeInMs - delay time in milli seconds.
- * @param {boolean} [loader=false] - Whether to hide the loader GIF after the response is received (default is false).
- * @returns {Promise<*>} - A promise that resolves to the JSON response from the server.
- */
-
-async function fetchJsonResponseWithDelay(url, payload, method, timeInMs, loader = false) {
-  try {
-    const currentDate = new Date();
-    if (env === 'dev') {
-      return fetch(url, {
-        method,
-        body: payload ? JSON.stringify(payload) : null,
-        mode: 'cors',
-        headers: {
-          'Content-type': 'text/plain',
-          Accept: 'application/json',
-          iat: typeof window !== 'undefined' ? btoa(currentDate.getTime()) : '',
-        },
-      })
-        .then((res) => {
-          if (loader) hideLoaderGif();
-          return res.json();
-        });
-    }
-    const responseObj = await invokeRestAPIWithDataSecurity(payload);
-    const response = await fetch(url, {
-      method,
-      body: responseObj.dataEnc,
-      mode: 'cors',
-      headers: {
-        'Content-type': 'text/plain',
-        Accept: 'text/plain',
-        'X-Enckey': responseObj.keyEnc,
-        'X-Encsecret': responseObj.secretEnc,
-      },
-    });
-    const result = await response.text();
-    const decryptedResult = await decryptDataES6(result, responseObj.secret);
-    const parsedResult = JSON.parse(decryptedResult);
-    await delay(timeInMs);
-    if (loader) hideLoaderGif();
-    return parsedResult;
   } catch (error) {
   // eslint-disable-next-line no-console
     console.error('Error in fetching JSON response:', error);
