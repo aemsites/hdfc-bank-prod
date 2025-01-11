@@ -23,7 +23,7 @@ const BASE_URL = getSubmitBaseUrl();
 
 const SEMI_ENDPOINTS = {
   otpGen: `${BASE_URL}/content/hdfc_ccforms/api/validatecardotpgen.json`,
-  otpVal: (BASE_URL?.includes('dev')) ? `${'https://applyonlineuat01.hdfcbank.com'}/content/hdfc_hafcards/api/eligibilitycheck.json` : `${BASE_URL}/content/hdfc_hafcards/api/eligibilitycheck.json`,
+  otpVal: `${BASE_URL}/content/hdfc_hafcards/api/eligibilitycheck.json`,
   preexecution: `${BASE_URL}/content/hdfc_ccforms/api/preexecution.json`,
   masterChanel: `${BASE_URL}/content/hdfc_commonforms/api/mdm.CREDIT.POST_ISSUANCE_CHANNEL_MASTER.json`,
   ccSmartEmi: `${BASE_URL}/content/hdfc_ccforms/api/ccsmartemi.json`,
