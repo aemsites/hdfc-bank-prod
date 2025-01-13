@@ -41,17 +41,26 @@ const thanks = document?.querySelector('[name="thankYouPanel"]');
 
 function setBodyPage(thanks) {
   if (thanks) {
+    const errorPanel = document.querySelector('[name="itsNotYouPanel"]');
+    const errorConnectionPanel = document.querySelector('[name="errorConnection"]');
+    if (!thanks?.dataset?.visible) {
+      document.body.classList.add('nreThankYouPage');
+      document.body.classList.remove('errorPageBody');
+    }
+    if (!errorPanel?.dataset?.visible) {
+      document.body.classList.remove('nreThankYouPage');
+      document.body.classList.add('errorPageBody');
+    }
+    if (!errorConnectionPanel?.dataset?.visible) {
+      document.body.classList.remove('nreThankYouPage');
+      document.body.classList.add('errorPageBody');
+    }
     if (window && document && typeof _satellite !== 'undefined') {
       enableAccordionClick();
       attachPrivacyPolicyAnalytics();
-      console.log(currentFormContext);
       thanks = document.querySelector('[name="thankYouPanel"]');
-      const errorPanel = document.querySelector('[name="itsNotYouPanel"]');
-      const errorConnectionPanel = document.querySelector('[name="errorConnection"]');
-      if (!thanks?.dataset?.visible) {
-        document.body.classList.add('nreThankYouPage');
-        document.body.classList.remove('errorPageBody');
 
+      if (!thanks?.dataset?.visible) {
         // On Click Analytics
         document.querySelector('.field-hdfcbankwebsite a')?.addEventListener('click', function() {
           const digitalData = createDeepCopyFromBlueprint(ANALYTICS_CLICK_OBJECT);
@@ -156,14 +165,7 @@ function setBodyPage(thanks) {
           _satellite.track('pageload');
         // }, 2000);
       }
-      if (!errorPanel?.dataset?.visible) {
-        document.body.classList.remove('nreThankYouPage');
-        document.body.classList.add('errorPageBody');
-      }
-      if (!errorConnectionPanel?.dataset?.visible) {
-        document.body.classList.remove('nreThankYouPage');
-        document.body.classList.add('errorPageBody');
-      }
+      
 
       // document.body.classList.add('preloader');
       const mutationCallback = (mutationsList) => {

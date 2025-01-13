@@ -148,6 +148,99 @@
           font-family: "Inter", sans-serif !important;
         }
 
+
+        .field-bankloginwrapper {         
+          .field-bankloginpanel {
+            display: grid;
+            .field-bankloginpanel {
+              width: 100%;
+              grid-column: span  12;
+
+              .plain-text-wrapper {
+                padding-bottom: 20px;
+                            border-bottom: 1px dashed var(--color-interface-border-secondary);
+                            margin-bottom: 15px;
+                p {
+                  font-size: 28px;
+                  line-height: 36px;
+                  font-weight: 600;
+                  color: var(--color-interface-text-primary);
+                  margin-bottom: 5px;
+  
+                  @media (320px <=width <=767px) {
+                    font-size: 20px;
+                    line-height: 28px;
+                  }
+                }
+              }
+
+              .field-username,
+              .field-password {
+                position: relative;
+                width: 352px;
+
+                @media (320px <=width <=767px) {
+                  margin-top: 30px !important;
+                }
+
+                @media (320px <=width <=600px) {
+                  width: 100%;
+                }
+
+                label {
+                  margin: 13px;
+                  font-weight: 400;
+                }
+
+                input[type="text"],
+                input[type="password"] {
+                  max-width: 352px !important;
+                  margin-bottom: 0;
+                  margin-top: 0;
+                  color: var(--color-interface-text-primary);
+                  border-color: var(--color-interface-border-secondary);
+                  padding-left: 15px;
+                  background-color: #fff;
+                  border-radius: 12px;
+                  height: var(--form-input-height);
+
+                  @media (320px <=width <=767px) {
+                    width: 100% !important;
+                    max-width: 100% !important;
+                  }
+
+                  &:focus-visible {
+                    outline: none;
+                  }
+
+                  &::placeholder {
+                    color: transparent;
+                  }
+                }
+
+                &[data-active="true"] {
+                  .field-label {
+                    background: #ffff;
+                    font-weight: 400;
+                    transform: translateY(-22px);
+                  }
+                }     
+                
+                &.field-password {
+                  margin-top: 10px;
+                }
+              }
+            }
+          }
+
+          .field-bankloginbutton{
+            max-width: 272px;
+            margin-top: 20px;
+          }
+        }      
+
+      /* Bank login screen end */
+
         .field-parentlandingpagepanel {
           .field-landingpanel {
             .field-letsgetstarted p {
