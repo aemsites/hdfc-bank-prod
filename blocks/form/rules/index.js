@@ -243,7 +243,7 @@ async function fetchData({ id }) {
   try {
     const { search = '' } = window.location;
     const date_token = new Date().getTime();
-    const url = `https://applyonlinedev.hdfcbank.com/adobe/forms/af/data/${id}${search}&ifsc=${date_token}`;
+    const url = externalize(`/adobe/forms/af/data/${id}${search}&ifsc=${date_token}`);
     const response = await fetch(url);
     const json = await response.json();
     const { data } = json;
