@@ -15,7 +15,7 @@ export const defaultErrorMessages = {
   required: 'Please fill in this field.',
 };
 
-let submitBaseUrl = 'https://applyonline.hdfcbank.com';
+let submitBaseUrl = 'https://applyonlinestage.hdfcbank.com';
 
 const localDev = ['aem.live', 'aem.page', 'localhost', 'hlx.live', 'hlx.page'];
 const mainProd = ['hdfc-bank-prod'];
@@ -28,17 +28,8 @@ function isLocalDev() {
   return false;
 }
 
-function isMainProd() {
-  // eslint-disable-next-line no-restricted-globals
-  if (typeof location !== 'undefined') {
-    const { hostname } = location;
-    return mainProd.some((main) => hostname.includes(main));
-  }
-  return false;
-}
-
 if (isLocalDev()) {
-  submitBaseUrl = 'https://applyonlinedev.hdfcbank.com';
+  submitBaseUrl = 'https://applyonlinestage.hdfcbank.com';
 }
 
 export function setSubmitBaseUrl(url) {
