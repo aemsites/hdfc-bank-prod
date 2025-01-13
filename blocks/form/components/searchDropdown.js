@@ -7,7 +7,7 @@ export default function searchPanel(panel) {
     inputField.dataset.id = "searchcode-id";
     let searchParent = inputField.parentNode;
 
-    let path = `/content/hdfc_commonforms/api/mdm.ETB.NRI_ISD_MASTER.COUNTRYNAME.json?pageSize=300`;
+    let path = `/content/hdfc_commonforms/api/mdm.ETB.NRI_ISD_MASTER.COUNTRYNAME.json?pageSize=300&ifsc=234`;
     path = urlPath(path);
     let fetchResult = fetchJsonResponse(path,
         null,
