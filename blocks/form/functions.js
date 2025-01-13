@@ -12,6 +12,7 @@ export const formIdPathMapping = {
   '/content/forms/af/hdfc_haf/digital/corporate-credit-cards-application-cug': '../../../creditcards/corporate-creditcard/cc-functions.js', // ccc cug
   '/content/forms/af/hdfc_haf/digital/fdlienprodtest': '../../../creditcards/fd-card/fd-functions.js', // fd form
   '/content/forms/af/hdfc_haf/digital/account-opening-nre-nro': '../../../liabilities/nre-Nro/nre-nro.js', 
+  '/content/forms/af/hdfc_haf/digital/nreaccountopening': '../../../liabilities/nre-Nro/nre-nro.js'
 };
 
 export default function getCustomFunctionPath(id) {
